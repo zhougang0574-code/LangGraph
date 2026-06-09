@@ -1,0 +1,2187 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LangGraph 学习笔记</title>
+<style>
+/* ── 全局变量 ────────────────────────────────────── */
+:root {
+  --sidebar-w: 260px;
+  --bg: #f0f4f8;
+  --surface: #ffffff;
+  --primary: #2563eb;
+  --primary-dark: #1d4ed8;
+  --primary-light: #dbeafe;
+  --accent: #7c3aed;
+  --accent-light: #ede9fe;
+  --green: #16a34a;
+  --green-light: #dcfce7;
+  --orange: #d97706;
+  --orange-light: #fef3c7;
+  --red: #dc2626;
+  --text: #0f172a;
+  --text-sub: #475569;
+  --text-muted: #94a3b8;
+  --border: #cbd5e1;
+  --code-bg: #0f172a;
+  --radius: 10px;
+}
+
+/* ── Reset ──────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 17px;
+  line-height: 1.8;
+  display: flex;
+}
+
+/* ── 侧边栏 ──────────────────────────────────────── */
+#sidebar {
+  width: var(--sidebar-w);
+  height: 100vh;          /* 固定高度，不用 min-height */
+  background: var(--code-bg);
+  color: #e2e8f0;
+  position: fixed;
+  top: 0; left: 0;
+  overflow-y: auto;       /* 内容超出时可滚动 */
+  overflow-x: hidden;
+  z-index: 100;
+  padding-bottom: 40px;
+  scrollbar-width: thin;
+  scrollbar-color: #1e293b transparent;
+}
+#sidebar::-webkit-scrollbar { width: 4px; }
+#sidebar::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 2px; }
+
+.sidebar-header {
+  padding: 28px 20px 20px;
+  border-bottom: 1px solid #1e293b;
+}
+.sidebar-header .logo {
+  font-size: 11px;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  margin-bottom: 6px;
+}
+.sidebar-header h1 {
+  font-size: 17px;
+  font-weight: 700;
+  color: #f1f5f9;
+  line-height: 1.3;
+}
+.sidebar-header p {
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 6px;
+}
+
+.nav-section {
+  padding: 16px 0 0;
+}
+.nav-section-title {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: #475569;
+  padding: 0 20px 8px;
+}
+
+.nav-lesson {
+  margin-bottom: 2px;
+}
+.nav-lesson-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 20px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #94a3b8;
+  cursor: pointer;
+  transition: all .15s;
+  text-decoration: none;
+  user-select: none;
+}
+.nav-lesson-header:hover { color: #e2e8f0; background: #1e293b; }
+.nav-lesson-header.active { color: #60a5fa; background: #1e3a5f; }
+.nav-lesson-num {
+  width: 22px; height: 22px;
+  background: #1e293b;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+.nav-lesson-header.active .nav-lesson-num { background: #2563eb; color: white; }
+
+/* 折叠箭头 */
+.nav-arrow {
+  margin-left: auto;
+  font-size: 10px;
+  color: #475569;
+  transition: transform .2s ease;
+  line-height: 1;
+}
+.nav-lesson.open .nav-arrow { transform: rotate(90deg); color: #60a5fa; }
+
+/* 子菜单：默认折叠 */
+.nav-sub {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height .25s ease;
+}
+.nav-lesson.open .nav-sub {
+  max-height: 400px;  /* 足够大的值，动画用 */
+}
+.nav-sub a {
+  display: block;
+  padding: 6px 20px 6px 52px;
+  font-size: 12.5px;
+  color: #64748b;
+  text-decoration: none;
+  transition: color .15s;
+  line-height: 1.4;
+}
+.nav-sub a:hover { color: #94a3b8; }
+
+/* ── 主内容区 ─────────────────────────────────────── */
+#main {
+  margin-left: var(--sidebar-w);
+  flex: 1;
+  padding: 0 0 80px;
+}
+
+/* ── 每课 Banner ──────────────────────────────────── */
+.lesson-banner {
+  padding: 52px 56px 44px;
+  color: white;
+  position: relative;
+  overflow: hidden;
+}
+.lesson-banner::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+}
+.lesson-banner-inner { position: relative; max-width: 800px; }
+.lesson-tag {
+  display: inline-block;
+  background: rgba(255,255,255,.2);
+  backdrop-filter: blur(4px);
+  padding: 4px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+.lesson-banner h2 {
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1.25;
+  margin-bottom: 12px;
+}
+.lesson-banner .desc {
+  font-size: 16px;
+  opacity: .85;
+  max-width: 620px;
+  line-height: 1.7;
+}
+.lesson-banner .objectives {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 20px;
+}
+.obj-tag {
+  background: rgba(255,255,255,.15);
+  border: 1px solid rgba(255,255,255,.25);
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+/* Banner 颜色 */
+.banner-blue   { background: linear-gradient(135deg, #1d4ed8 0%, #4f46e5 100%); }
+.banner-purple { background: linear-gradient(135deg, #6d28d9 0%, #0ea5e9 100%); }
+.banner-green  { background: linear-gradient(135deg, #065f46 0%, #0891b2 100%); }
+.banner-orange { background: linear-gradient(135deg, #92400e 0%, #b45309 100%); }
+
+/* ── 内容区域 ─────────────────────────────────────── */
+.lesson-content {
+  padding: 0 56px 56px;
+  max-width: 960px;
+}
+
+/* ── 章节标题 ─────────────────────────────────────── */
+.sec-title {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 48px 0 20px;
+  padding-bottom: 14px;
+  border-bottom: 2px solid var(--border);
+  scroll-margin-top: 20px;
+}
+.sec-num {
+  width: 34px; height: 34px;
+  background: var(--primary);
+  color: white;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800;
+  font-size: 15px;
+  flex-shrink: 0;
+}
+.sec-title h3 { font-size: 21px; font-weight: 700; }
+
+h4 { font-size: 17px; font-weight: 700; margin: 24px 0 12px; color: var(--text); }
+p { margin-bottom: 16px; font-size: 17px; }
+ul, ol { padding-left: 26px; margin-bottom: 16px; }
+li { margin-bottom: 8px; font-size: 17px; }
+strong { color: var(--text); }
+
+/* ── 代码块 ──────────────────────────────────────── */
+pre {
+  background: var(--code-bg);
+  color: #e2e8f0;
+  padding: 22px 26px;
+  border-radius: var(--radius);
+  overflow-x: auto;
+  font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", "SF Mono", Consolas, monospace;
+  font-size: 14px;
+  line-height: 1.8;
+  margin: 18px 0;
+  border: 1px solid #1e293b;
+}
+code {
+  background: #f1f5f9;
+  color: #be185d;
+  padding: 2px 7px;
+  border-radius: 5px;
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-size: 14.5px;
+}
+pre code { background: none; color: inherit; padding: 0; font-size: 14px; }
+
+/* 语法色 */
+.kw  { color: #f472b6; }
+.fn  { color: #60a5fa; }
+.str { color: #a3e635; }
+.cm  { color: #475569; }
+.cls { color: #fbbf24; }
+.num { color: #fb923c; }
+.bi  { color: #a78bfa; }
+.dec { color: #94a3b8; }
+
+/* ── 卡片 ────────────────────────────────────────── */
+.card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  margin: 18px 0;
+  border: 1px solid var(--border);
+  font-size: 16px;
+}
+.card.blue   { border-left: 4px solid var(--primary);  background: #eff6ff; }
+.card.purple { border-left: 4px solid var(--accent);   background: #f5f3ff; }
+.card.green  { border-left: 4px solid var(--green);    background: #f0fdf4; }
+.card.orange { border-left: 4px solid var(--orange);   background: #fffbeb; }
+.card-title { font-weight: 700; margin-bottom: 8px; font-size: 15px; }
+.card.blue   .card-title { color: var(--primary); }
+.card.purple .card-title { color: var(--accent); }
+.card.green  .card-title { color: var(--green); }
+.card.orange .card-title { color: var(--orange); }
+
+/* ── 表格 ────────────────────────────────────────── */
+.table-wrap { overflow-x: auto; margin: 18px 0; }
+table { width: 100%; border-collapse: collapse; font-size: 15.5px; }
+th {
+  background: var(--code-bg);
+  color: #e2e8f0;
+  padding: 13px 18px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 14px;
+}
+td { padding: 12px 18px; border-bottom: 1px solid var(--border); vertical-align: top; }
+tr:nth-child(even) td { background: #f8fafc; }
+tr:hover td { background: var(--primary-light); transition: background .12s; }
+
+/* ── 流程图 ───────────────────────────────────────── */
+.flow {
+  background: var(--code-bg);
+  color: #86efac;
+  padding: 26px 30px;
+  border-radius: var(--radius);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 13.5px;
+  line-height: 2;
+  margin: 18px 0;
+  white-space: pre;
+  overflow-x: auto;
+}
+
+/* ── 知识点卡片网格 ────────────────────────────────── */
+.kp-grid { display: grid; gap: 14px; margin: 18px 0; }
+.kp {
+  display: flex;
+  gap: 16px;
+  padding: 18px 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 16px;
+}
+.kp-icon { font-size: 22px; flex-shrink: 0; width: 34px; text-align: center; margin-top: 2px; }
+.kp strong { display: block; margin-bottom: 5px; font-size: 16px; }
+
+/* ── API 速查表 ───────────────────────────────────── */
+.api-table td:first-child code { color: #60a5fa; background: #1e293b; font-size: 13px; }
+
+/* ── 课程分隔线 ────────────────────────────────────── */
+.lesson-divider {
+  height: 6px;
+  background: linear-gradient(90deg, var(--border) 0%, transparent 100%);
+  margin: 0 56px;
+}
+
+/* ── 回到顶部 ─────────────────────────────────────── */
+#back-top {
+  position: fixed;
+  bottom: 28px; right: 28px;
+  width: 44px; height: 44px;
+  background: var(--primary);
+  color: white;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(37,99,235,.4);
+  z-index: 200;
+  text-decoration: none;
+  opacity: .9;
+  transition: opacity .15s, transform .15s;
+}
+#back-top:hover { opacity: 1; transform: translateY(-2px); }
+
+/* ── 响应式 ───────────────────────────────────────── */
+@media (max-width: 768px) {
+  #sidebar { transform: translateX(-100%); }
+  #main { margin-left: 0; }
+  .lesson-banner, .lesson-content { padding-left: 20px; padding-right: 20px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ════════ 侧边导航 ════════ -->
+<nav id="sidebar">
+  <div class="sidebar-header">
+    <div class="logo">LangGraph · 学习笔记</div>
+    <h1>从 LangChain 到<br>LangGraph</h1>
+    <p>阿里百炼 qwen-plus 实战</p>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-section-title">课程目录</div>
+
+    <!-- 第一课 -->
+    <div class="nav-lesson open">
+      <a class="nav-lesson-header active" href="#lesson1">
+        <div class="nav-lesson-num">1</div>
+        核心概念：StateGraph
+        <span class="nav-arrow">▶</span>
+      </a>
+      <div class="nav-sub">
+        <a href="#l1-why">为什么需要 LangGraph</a>
+        <a href="#l1-state">State（共享状态）</a>
+        <a href="#l1-node">Node（节点）</a>
+        <a href="#l1-edge">Edge（边）</a>
+        <a href="#l1-build">构建与编译</a>
+        <a href="#l1-flow">执行流程图</a>
+        <a href="#l1-summary">知识点总结</a>
+      </div>
+    </div>
+
+    <!-- 第二课 -->
+    <div class="nav-lesson">
+      <a class="nav-lesson-header" href="#lesson2">
+        <div class="nav-lesson-num">2</div>
+        条件路由：动态分支
+        <span class="nav-arrow">▶</span>
+      </a>
+      <div class="nav-sub">
+        <a href="#l2-what">什么是条件路由</a>
+        <a href="#l2-router">路由函数</a>
+        <a href="#l2-api">add_conditional_edges</a>
+        <a href="#l2-entrypoint">set_entry_point vs 条件边的区别</a>
+        <a href="#l2-code">完整代码讲解</a>
+        <a href="#l2-flow">执行流程图</a>
+        <a href="#l2-summary">知识点总结</a>
+      </div>
+    </div>
+
+    <!-- 第三课 -->
+    <div class="nav-lesson">
+      <a class="nav-lesson-header" href="#lesson3">
+        <div class="nav-lesson-num">3</div>
+        ReAct Agent：循环推理
+        <span class="nav-arrow">▶</span>
+      </a>
+      <div class="nav-sub">
+        <a href="#l3-react">ReAct 模式是什么</a>
+        <a href="#l3-reducer">Reducer：add_messages</a>
+        <a href="#l3-tool">工具定义与 bind_tools</a>
+        <a href="#l3-builtin">ToolNode 与 tools_condition</a>
+        <a href="#l3-loop">循环结构解析</a>
+        <a href="#l3-code">完整代码讲解</a>
+        <a href="#l3-flow">执行流程图</a>
+        <a href="#l3-summary">知识点总结</a>
+      </div>
+    </div>
+
+    <!-- 第四课 -->
+    <div class="nav-lesson">
+      <a class="nav-lesson-header" href="#lesson4">
+        <div class="nav-lesson-num">4</div>
+        Checkpointer：持久化记忆
+        <span class="nav-arrow">▶</span>
+      </a>
+      <div class="nav-sub">
+        <a href="#l4-problem">无记忆 Agent 的问题</a>
+        <a href="#l4-checkpointer">Checkpointer 原理</a>
+        <a href="#l4-thread">thread_id 与多会话</a>
+        <a href="#l4-code">完整代码讲解</a>
+        <a href="#l4-flow">执行机制图</a>
+        <a href="#l4-summary">知识点总结</a>
+      </div>
+    </div>
+
+    <!-- 第六课 -->
+    <div class="nav-lesson">
+      <a class="nav-lesson-header" href="#lesson6">
+        <div class="nav-lesson-num">6</div>
+        多 Agent 协作：Supervisor 模式
+        <span class="nav-arrow">▶</span>
+      </a>
+      <div class="nav-sub">
+        <a href="#l6-why">为什么需要多 Agent</a>
+        <a href="#l6-pattern">Supervisor 模式架构</a>
+        <a href="#l6-state">next 字段的作用</a>
+        <a href="#l6-supervisor">Supervisor 节点设计</a>
+        <a href="#l6-agent">专家 Agent 设计</a>
+        <a href="#l6-code">完整代码讲解</a>
+        <a href="#l6-flow">执行流程图</a>
+        <a href="#l6-summary">知识点总结</a>
+      </div>
+    </div>
+
+    <!-- 第五课 -->
+    <div class="nav-lesson">
+      <a class="nav-lesson-header" href="#lesson5">
+        <div class="nav-lesson-num">5</div>
+        Human-in-the-Loop：人工介入
+        <span class="nav-arrow">▶</span>
+      </a>
+      <div class="nav-sub">
+        <a href="#l5-why">为什么需要人工介入</a>
+        <a href="#l5-interrupt">interrupt_before 原理</a>
+        <a href="#l5-hasattr">hasattr 判断说明</a>
+        <a href="#l5-approve">批准：invoke(None)</a>
+        <a href="#l5-reject">拒绝：update_state</a>
+        <a href="#l5-modify">修改参数后批准</a>
+        <a href="#l5-flow">三种处理流程图</a>
+        <a href="#l5-selective">进阶：选择性审核</a>
+        <a href="#l5-summary">知识点总结</a>
+      </div>
+    </div>
+
+  </div>
+</nav>
+
+<!-- ════════ 主内容 ════════ -->
+<main id="main">
+
+<!-- ╔══════════════════════════════════════════╗ -->
+<!-- ║  第一课                                   ║ -->
+<!-- ╚══════════════════════════════════════════╝ -->
+<section id="lesson1">
+  <div class="lesson-banner banner-blue">
+    <div class="lesson-banner-inner">
+      <span class="lesson-tag">第一课 · Lesson 01</span>
+      <h2>LangGraph 核心概念：StateGraph 入门</h2>
+      <p class="desc">从零理解 State、Node、Edge 三大核心概念，构建第一个 LangGraph 应用，理解为什么要从 LangChain 迁移到 LangGraph。</p>
+      <div class="objectives">
+        <span class="obj-tag">State 共享状态</span>
+        <span class="obj-tag">Node 节点函数</span>
+        <span class="obj-tag">Edge 有向边</span>
+        <span class="obj-tag">compile + invoke</span>
+        <span class="obj-tag">vs LangChain Chain</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="lesson-content">
+
+    <!-- 1. 为什么需要 LangGraph -->
+    <div class="sec-title" id="l1-why">
+      <div class="sec-num">1</div>
+      <h3>为什么需要 LangGraph？</h3>
+    </div>
+
+    <p>你已经学过 LangChain，知道 <code>Chain</code> 可以把多个组件串联起来。但 Chain 有一个根本限制：<strong>只能线性执行</strong>，无法做条件分支、循环或并行。随着 Agent 越来越复杂，这个限制变得越来越难以接受。</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>对比维度</th><th>LangChain Chain</th><th>LangGraph Graph</th></tr></thead>
+        <tbody>
+          <tr><td>执行方式</td><td>固定线性管道 A→B→C</td><td>有向图，支持任意连接</td></tr>
+          <tr><td>条件分支</td><td>❌ 不支持</td><td>✅ add_conditional_edges</td></tr>
+          <tr><td>循环执行</td><td>❌ 不支持</td><td>✅ 节点可以指向已执行节点</td></tr>
+          <tr><td>状态管理</td><td>各组件独立，手动传递</td><td>全局 State，所有节点共享</td></tr>
+          <tr><td>并行执行</td><td>❌ 不支持</td><td>✅ 支持（高级特性）</td></tr>
+          <tr><td>人工介入</td><td>❌ 不支持</td><td>✅ interrupt_before/after</td></tr>
+          <tr><td>适合场景</td><td>简单 RAG、单轮问答</td><td>Agent、多步推理、对话系统</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card blue">
+      <div class="card-title">💡 一句话理解</div>
+      LangChain Chain 是"流水线"，LangGraph 是"状态机"。当你的 AI 应用需要根据结果做决策、需要循环推理、或需要人工介入时，就该用 LangGraph。
+    </div>
+
+    <!-- 2. State -->
+    <div class="sec-title" id="l1-state">
+      <div class="sec-num">2</div>
+      <h3>核心概念一：State（共享状态）</h3>
+    </div>
+
+    <p>State 是 LangGraph 中最重要的概念。它是一个 <strong>Python TypedDict</strong>，充当整个 Graph 的"共享内存"——所有节点都从这里读数据、把结果写回这里。</p>
+
+<pre><code><span class="kw">from</span> typing <span class="kw">import</span> TypedDict
+
+<span class="kw">class</span> <span class="cls">State</span>(TypedDict):
+    question: str    <span class="cm"># 用户输入的问题</span>
+    answer: str      <span class="cm"># LLM 的回答</span>
+    word_count: int  <span class="cm"># 回答的字数统计</span></code></pre>
+
+    <div class="kp-grid">
+      <div class="kp">
+        <div class="kp-icon">📦</div>
+        <div><strong>只放需要跨节点传递的数据</strong>节点内部的临时变量不需要放进 State，只有"A 节点写入、B 节点读取"的数据才放进去。</div>
+      </div>
+      <div class="kp">
+        <div class="kp-icon">🔑</div>
+        <div><strong>用 TypedDict 提供类型提示</strong>IDE 能自动补全字段名，减少拼写错误。LangGraph 也用它做运行时校验。</div>
+      </div>
+      <div class="kp">
+        <div class="kp-icon">🔄</div>
+        <div><strong>字段默认行为是"覆盖"</strong>节点返回 <code>{"answer": "新值"}</code> 会直接覆盖旧值。需要"追加"行为时，用 Reducer（第四课讲解）。</div>
+      </div>
+    </div>
+
+    <div class="card orange">
+      <div class="card-title">⚠️ 与 LangChain 的区别</div>
+      LangChain 的 <code>RunnablePassthrough</code> 把数据逐级传递，上下游耦合紧密。LangGraph 的 State 是全局共享的，任何节点都能读任何字段，解耦更彻底。
+    </div>
+
+    <!-- 3. Node -->
+    <div class="sec-title" id="l1-node">
+      <div class="sec-num">3</div>
+      <h3>核心概念二：Node（节点）</h3>
+    </div>
+
+    <p>节点就是<strong>普通的 Python 函数</strong>。签名固定：接收完整的 State，返回一个字典（只包含要更新的字段）。</p>
+
+<pre><code><span class="kw">def</span> <span class="fn">llm_node</span>(state: <span class="cls">State</span>) -> dict:
+    <span class="cm"># 从 State 读取输入</span>
+    response = llm.invoke([HumanMessage(content=state[<span class="str">"question"</span>])])
+    <span class="cm"># 只返回要更新的字段</span>
+    <span class="kw">return</span> {<span class="str">"answer"</span>: response.content}
+
+<span class="kw">def</span> <span class="fn">count_node</span>(state: <span class="cls">State</span>) -> dict:
+    <span class="kw">return</span> {<span class="str">"word_count"</span>: len(state[<span class="str">"answer"</span>])}
+
+<span class="kw">def</span> <span class="fn">print_node</span>(state: <span class="cls">State</span>) -> dict:
+    print(state[<span class="str">"answer"</span>])
+    <span class="kw">return</span> {}  <span class="cm"># 不更新任何字段，返回空字典</span></code></pre>
+
+    <div class="kp-grid">
+      <div class="kp"><div class="kp-icon">1️⃣</div><div><strong>参数只有一个：state</strong>函数接收当前完整的 State 快照，不能有其他必要参数。如需注入额外依赖（如数据库连接），可以用闭包或类方法。</div></div>
+      <div class="kp"><div class="kp-icon">2️⃣</div><div><strong>返回值是 dict，只含要更新的字段</strong>LangGraph 会把返回的字典"合并"回 State 中，未返回的字段保持原值不变。返回 <code>{}</code> 表示不修改任何字段。</div></div>
+      <div class="kp"><div class="kp-icon">3️⃣</div><div><strong>节点本身无状态</strong>所有状态都在 State 里，节点函数可以在不同 Graph 里复用。建议用动词命名，如 <code>classify_intent</code>、<code>call_llm</code>。</div></div>
+    </div>
+
+    <!-- 4. Edge -->
+    <div class="sec-title" id="l1-edge">
+      <div class="sec-num">4</div>
+      <h3>核心概念三：Edge（边）</h3>
+    </div>
+
+    <p>Edge 定义了节点之间的执行顺序。本课介绍<strong>固定边</strong>（无条件跳转），下一课学习条件边。</p>
+
+<pre><code><span class="kw">from</span> langgraph.graph <span class="kw">import</span> END
+
+<span class="cm"># 固定边：llm 执行完后，始终跳转到 count</span>
+graph_builder.add_edge(<span class="str">"llm"</span>, <span class="str">"count"</span>)
+
+<span class="cm"># 指向内置终止符 END，表示 Graph 在此结束</span>
+graph_builder.add_edge(<span class="str">"print"</span>, END)</code></pre>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Edge 类型</th><th>方法</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td><strong>固定边</strong>（本课）</td><td><code>add_edge(A, B)</code></td><td>A 执行完后始终去 B</td></tr>
+          <tr><td><strong>条件边</strong>（第2课）</td><td><code>add_conditional_edges(A, fn)</code></td><td>根据函数返回值动态决定去哪</td></tr>
+          <tr><td><strong>入口点</strong></td><td><code>set_entry_point(node)</code></td><td>Graph 从哪个节点开始</td></tr>
+          <tr><td><strong>终止</strong></td><td><code>add_edge(node, END)</code></td><td>Graph 在此停止并返回 State</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card purple">
+      <div class="card-title">🔮 END 的含义</div>
+      <code>END</code> 是 LangGraph 内置终止符，从 <code>langgraph.graph</code> 导入。一个 Graph 可以有多个节点都指向 END（多出口），invoke() 在第一个到达 END 的路径结束时返回。
+    </div>
+
+    <!-- 5. 构建与编译 -->
+    <div class="sec-title" id="l1-build">
+      <div class="sec-num">5</div>
+      <h3>构建与编译 Graph</h3>
+    </div>
+
+    <p>LangGraph 采用"先定义、后编译"的模式。<code>compile()</code> 会对 Graph 做合法性校验，确保所有节点都可达、入口已设置等。</p>
+
+<pre><code><span class="cm"># Step 1：创建 GraphBuilder，指定 State 类型</span>
+graph_builder = <span class="cls">StateGraph</span>(State)
+
+<span class="cm"># Step 2：注册节点（"名称" → 函数）</span>
+graph_builder.add_node(<span class="str">"llm"</span>,   llm_node)
+graph_builder.add_node(<span class="str">"count"</span>, count_node)
+graph_builder.add_node(<span class="str">"print"</span>, print_node)
+
+<span class="cm"># Step 3：连接边</span>
+graph_builder.add_edge(<span class="str">"llm"</span>,   <span class="str">"count"</span>)
+graph_builder.add_edge(<span class="str">"count"</span>, <span class="str">"print"</span>)
+graph_builder.add_edge(<span class="str">"print"</span>, END)
+
+<span class="cm"># Step 4：设置入口</span>
+graph_builder.set_entry_point(<span class="str">"llm"</span>)
+
+<span class="cm"># Step 5：编译（锁定配置，校验合法性）</span>
+graph = graph_builder.compile()
+
+<span class="cm"># Step 6：运行（传入初始 State，返回最终 State）</span>
+result = graph.invoke({
+    <span class="str">"question"</span>: <span class="str">"用一句话解释什么是人工智能"</span>,
+    <span class="str">"answer"</span>: <span class="str">""</span>,
+    <span class="str">"word_count"</span>: <span class="num">0</span>,
+})</code></pre>
+
+    <!-- 6. 流程图 -->
+    <div class="sec-title" id="l1-flow">
+      <div class="sec-num">6</div>
+      <h3>执行流程图</h3>
+    </div>
+
+<div class="flow">初始 State: { question: "用一句话解释什么是人工智能", answer: "", word_count: 0 }
+      │
+      ▼
+ ┌─────────────────────────────────────────────────────────┐
+ │  [llm_node]                                             │
+ │  读取 state["question"]  →  调用 qwen-plus              │
+ │  返回 {"answer": "人工智能是..."}                        │
+ └─────────────────────────────────────────────────────────┘
+      │  State 更新: answer = "人工智能是..."
+      ▼
+ ┌─────────────────────────────────────────────────────────┐
+ │  [count_node]                                           │
+ │  读取 state["answer"]  →  计算 len(answer) = 51         │
+ │  返回 {"word_count": 51}                                │
+ └─────────────────────────────────────────────────────────┘
+      │  State 更新: word_count = 51
+      ▼
+ ┌─────────────────────────────────────────────────────────┐
+ │  [print_node]                                           │
+ │  读取并打印所有字段  →  返回 {}（不修改任何字段）           │
+ └─────────────────────────────────────────────────────────┘
+      │
+      ▼
+     END
+
+最终 State: { question: "...", answer: "人工智能是...", word_count: 51 }</div>
+
+    <!-- 7. 总结 -->
+    <div class="sec-title" id="l1-summary">
+      <div class="sec-num">7</div>
+      <h3>核心知识点总结</h3>
+    </div>
+
+    <div class="kp-grid">
+      <div class="kp"><div class="kp-icon">⭐</div><div><strong>State 是唯一的数据载体</strong>节点之间不直接传参，全靠读写同一个 State 字典。类比：State 就像数据库，节点是对其进行读写的函数。</div></div>
+      <div class="kp"><div class="kp-icon">⭐</div><div><strong>节点只返回要更新的字段</strong>返回 <code>{"answer": "xxx"}</code> 只更新 answer，其他字段保持不变。返回 <code>{}</code> 代表不修改任何东西。</div></div>
+      <div class="kp"><div class="kp-icon">⭐</div><div><strong>END 是内置终止符</strong><code>from langgraph.graph import END</code>，指向它的边就是 Graph 的出口，一个 Graph 可以有多个出口。</div></div>
+      <div class="kp"><div class="kp-icon">⭐</div><div><strong>compile() 锁定并校验配置</strong>如果 Graph 配置有误（如入口未设置、节点不可达），在 compile() 阶段就会报错，而不是运行时才出问题。</div></div>
+      <div class="kp"><div class="kp-icon">⭐</div><div><strong>invoke() 同步执行并返回最终 State</strong>传入初始 State 字典，返回 Graph 执行完毕时的完整 State。如需流式输出，可用 <code>graph.stream()</code>。</div></div>
+    </div>
+
+    <h4>API 速查表</h4>
+    <div class="table-wrap">
+      <table class="api-table">
+        <thead><tr><th>API</th><th>作用</th><th>示例</th></tr></thead>
+        <tbody>
+          <tr><td><code>StateGraph(State)</code></td><td>创建 Graph 构建器</td><td><code>StateGraph(MyState)</code></td></tr>
+          <tr><td><code>add_node(name, fn)</code></td><td>注册节点</td><td><code>g.add_node("llm", my_fn)</code></td></tr>
+          <tr><td><code>add_edge(from, to)</code></td><td>添加固定边</td><td><code>g.add_edge("a", "b")</code></td></tr>
+          <tr><td><code>set_entry_point(node)</code></td><td>设置入口节点</td><td><code>g.set_entry_point("start")</code></td></tr>
+          <tr><td><code>compile()</code></td><td>编译 Graph</td><td><code>graph = g.compile()</code></td></tr>
+          <tr><td><code>graph.invoke(state)</code></td><td>同步运行</td><td><code>graph.invoke({"q": "..."})</code></td></tr>
+          <tr><td><code>END</code></td><td>内置终止符</td><td><code>from langgraph.graph import END</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div><!-- /lesson-content -->
+</section><!-- /lesson1 -->
+
+<div class="lesson-divider"></div>
+
+<!-- ╔══════════════════════════════════════════╗ -->
+<!-- ║  第二课                                   ║ -->
+<!-- ╚══════════════════════════════════════════╝ -->
+<section id="lesson2">
+  <div class="lesson-banner banner-purple">
+    <div class="lesson-banner-inner">
+      <span class="lesson-tag">第二课 · Lesson 02</span>
+      <h2>条件路由：让 Graph 动态决策</h2>
+      <p class="desc">掌握 add_conditional_edges，让 Graph 根据 State 内容动态决定走哪条路——这是构建真正 Agent 的关键能力。</p>
+      <div class="objectives">
+        <span class="obj-tag">add_conditional_edges</span>
+        <span class="obj-tag">路由函数 Router</span>
+        <span class="obj-tag">意图分类</span>
+        <span class="obj-tag">扇出-扇入模式</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="lesson-content">
+
+    <!-- 1. 什么是条件路由 -->
+    <div class="sec-title" id="l2-what">
+      <div class="sec-num">1</div>
+      <h3>什么是条件路由？</h3>
+    </div>
+
+    <p>第一课的 Graph 中，每条边都是"固定的"——A 执行完一定去 B。<strong>条件路由</strong>让这条边变成"动态的"——A 执行完后，根据当前 State 的内容，决定去 B、C 还是 D。</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>对比</th><th>add_edge（固定边）</th><th>add_conditional_edges（条件边）</th></tr></thead>
+        <tbody>
+          <tr><td>跳转目标</td><td>固定，永远去同一个节点</td><td>动态，由路由函数决定</td></tr>
+          <tr><td>判断时机</td><td>无需判断</td><td>每次执行时调用路由函数</td></tr>
+          <tr><td>适用场景</td><td>固定流程</td><td>分类、决策、Agent 循环</td></tr>
+          <tr><td>代码示例</td><td><code>add_edge("A", "B")</code></td><td><code>add_conditional_edges("A", fn)</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p><strong>本课场景：</strong>用户输入问题 → LLM 先判断问题类型（意图分类）→ 根据类型路由到不同处理节点</p>
+
+    <div class="card blue">
+      <div class="card-title">📌 场景说明</div>
+      <ul>
+        <li><strong>问候类</strong>（greeting）→ greeting_handler：轻松友好的回复</li>
+        <li><strong>技术类</strong>（technical）→ technical_handler：专业详细的回复</li>
+        <li><strong>通用类</strong>（general）→ general_handler：通用简洁的回复</li>
+      </ul>
+    </div>
+
+    <!-- 2. 路由函数 -->
+    <div class="sec-title" id="l2-router">
+      <div class="sec-num">2</div>
+      <h3>路由函数（Router Function）</h3>
+    </div>
+
+    <p>路由函数是条件边的核心。它的规则很简单：</p>
+
+<pre><code><span class="kw">def</span> <span class="fn">route_by_intent</span>(state: <span class="cls">State</span>) -> str:
+    <span class="cm"># 规则1：接收 State 作为唯一参数</span>
+    intent = state[<span class="str">"intent"</span>]
+
+    <span class="cm"># 规则2：返回下一个节点的"名称字符串"</span>
+    <span class="kw">if</span> intent == <span class="str">"greeting"</span>:
+        <span class="kw">return</span> <span class="str">"greeting_handler"</span>
+    <span class="kw">elif</span> intent == <span class="str">"technical"</span>:
+        <span class="kw">return</span> <span class="str">"technical_handler"</span>
+    <span class="kw">else</span>:
+        <span class="kw">return</span> <span class="str">"general_handler"</span>
+    <span class="cm"># 规则3：也可以返回 END，代表直接结束</span></code></pre>
+
+    <div class="kp-grid">
+      <div class="kp"><div class="kp-icon">✅</div><div><strong>路由函数只做"决策"，不做"处理"</strong>它只读取 State，返回节点名称字符串，不修改 State。真正的业务逻辑放在各个 handler 节点里——这是关注点分离的体现。</div></div>
+      <div class="kp"><div class="kp-icon">✅</div><div><strong>返回值是节点名称字符串</strong>返回的字符串必须与 <code>add_node()</code> 注册的节点名称完全一致，否则运行时报错。也可以返回内置的 <code>END</code>。</div></div>
+    </div>
+
+    <!-- 3. add_conditional_edges -->
+    <div class="sec-title" id="l2-api">
+      <div class="sec-num">3</div>
+      <h3>add_conditional_edges 用法</h3>
+    </div>
+
+<pre><code><span class="cm"># 用法一：最简形式（路由函数直接返回节点名）</span>
+graph_builder.add_conditional_edges(
+    <span class="str">"classify"</span>,      <span class="cm"># 从哪个节点出发</span>
+    route_by_intent,  <span class="cm"># 路由函数</span>
+)
+
+<span class="cm"># 用法二：带映射表（更清晰，推荐）</span>
+graph_builder.add_conditional_edges(
+    <span class="str">"classify"</span>,
+    route_by_intent,
+    {                             <span class="cm"># 映射表：路由函数返回值 → 实际节点名称</span>
+        <span class="str">"greeting_handler"</span>:  <span class="str">"greeting_handler"</span>,
+        <span class="str">"technical_handler"</span>: <span class="str">"technical_handler"</span>,
+        <span class="str">"general_handler"</span>:   <span class="str">"general_handler"</span>,
+    }
+)
+
+<span class="cm"># 用法三：映射表中的值可以与 key 不同（用于别名）</span>
+graph_builder.add_conditional_edges(
+    <span class="str">"classify"</span>,
+    route_by_intent,
+    {
+        <span class="str">"greeting"</span>:  <span class="str">"greeting_handler"</span>,  <span class="cm"># key 是路由函数返回值，value 是节点名</span>
+        <span class="str">"technical"</span>: <span class="str">"technical_handler"</span>,
+        <span class="str">"general"</span>:   <span class="str">"general_handler"</span>,
+    }
+)</code></pre>
+
+    <div class="card orange">
+      <div class="card-title">⚠️ 注意：映射表的作用</div>
+      当路由函数的返回值与节点名称不一样时，必须提供映射表。比如路由函数返回 <code>"greeting"</code>，但节点名是 <code>"greeting_handler"</code>，就需要用映射表做转换。如果返回值和节点名完全相同，映射表可以省略。
+    </div>
+
+    <!-- 4. set_entry_point vs add_conditional_edges -->
+    <div class="sec-title" id="l2-entrypoint">
+      <div class="sec-num">4</div>
+      <h3>常见疑问：set_entry_point 和 add_conditional_edges 都写了 "classify"，有什么区别？</h3>
+    </div>
+
+    <p>这是一个非常好的问题。在原始代码里，两行都出现了 <code>"classify"</code>，容易让人误以为它们是同一件事：</p>
+
+<pre><code>graph_builder.set_entry_point(<span class="str">"classify"</span>)          <span class="cm"># 为什么这里也是 classify？</span>
+graph_builder.add_conditional_edges(<span class="str">"classify"</span>, ...)  <span class="cm"># 这里也是 classify？</span></code></pre>
+
+    <p><strong>它们是完全不同的两件事，只是碰巧指向了同一个节点名。</strong></p>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th></th><th>set_entry_point("classify")</th><th>add_conditional_edges("classify", ...)</th></tr></thead>
+        <tbody>
+          <tr><td><strong>作用</strong></td><td>告诉 Graph：invoke() 时<br>第一步从哪个节点开始</td><td>告诉 Graph：classify 节点执行完之后<br>往哪里走</td></tr>
+          <tr><td><strong>影响范围</strong></td><td>全局入口，只设置一次</td><td>仅定义 classify 节点的出边</td></tr>
+          <tr><td><strong>类比</strong></td><td>地图上标注"游客从A门进入"</td><td>A门内部的指路牌："左走/直走/右走"</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>为了让区别更清晰，代码里加入了一个 <code>preprocess_node</code>（预处理节点），让入口节点和条件边出发节点变成两个不同的节点：</p>
+
+<pre><code><span class="cm"># 入口改为 preprocess，不再是 classify</span>
+graph_builder.set_entry_point(<span class="str">"preprocess"</span>)
+
+<span class="cm"># preprocess 执行完后，固定跳到 classify</span>
+graph_builder.add_edge(<span class="str">"preprocess"</span>, <span class="str">"classify"</span>)
+
+<span class="cm"># classify 执行完后，条件分支（与入口无关）</span>
+graph_builder.add_conditional_edges(<span class="str">"classify"</span>, route_by_intent, {...})</code></pre>
+
+    <p>这样执行顺序就变成：</p>
+
+<div class="flow">invoke() 开始
+    │
+    ▼
+[preprocess]   ← set_entry_point("preprocess") 的作用：从这里开始
+    │
+    ▼  add_edge("preprocess", "classify")  固定跳转
+    │
+    ▼
+[classify]     ← add_conditional_edges("classify", ...) 的作用：从这里出发做条件分支
+    │
+    ├──▶ [greeting_handler]
+    ├──▶ [technical_handler]
+    └──▶ [general_handler]</div>
+
+    <div class="card green">
+      <div class="card-title">✅ 结论</div>
+      <ul>
+        <li><code>set_entry_point</code> = "invoke 时第一脚踩在哪个节点"，全局只设置一次</li>
+        <li><code>add_conditional_edges</code> 第一个参数 = "这个节点跑完之后，用路由函数决定下一步"，是在定义某个节点的出边</li>
+        <li>原始代码两处都写 <code>"classify"</code>，只是因为 classify 恰好也是入口节点。加了 preprocess 之后，两个参数就完全不同了，职责清晰可见。</li>
+      </ul>
+    </div>
+
+    <!-- 5. 完整代码 -->
+    <div class="sec-title" id="l2-code">
+      <div class="sec-num">5</div>
+      <h3>完整代码讲解（02_conditional_routing.py）</h3>
+    </div>
+
+<pre><code><span class="cm"># ── State 定义 ────────────────────────────────────────────</span>
+<span class="kw">class</span> <span class="cls">State</span>(TypedDict):
+    question: str  <span class="cm"># 用户问题</span>
+    intent: str    <span class="cm"># 意图分类结果：greeting / technical / general</span>
+    answer: str    <span class="cm"># 最终回答</span>
+
+<span class="cm"># ── 节点0：预处理（入口节点） ─────────────────────────────</span>
+<span class="cm"># 存在目的：让 set_entry_point 和 add_conditional_edges 指向不同节点</span>
+<span class="kw">def</span> <span class="fn">preprocess_node</span>(state: <span class="cls">State</span>) -> dict:
+    cleaned = state[<span class="str">"question"</span>].strip()
+    <span class="kw">return</span> {<span class="str">"question"</span>: cleaned}
+
+<span class="cm"># ── 节点1：意图分类 ───────────────────────────────────────</span>
+<span class="kw">def</span> <span class="fn">classify_node</span>(state: <span class="cls">State</span>) -> dict:
+    response = llm.invoke([
+        SystemMessage(content=(
+            <span class="str">"你是意图分类器，只返回以下三个词之一：\n"</span>
+            <span class="str">"greeting / technical / general"</span>
+        )),
+        HumanMessage(content=state[<span class="str">"question"</span>]),
+    ])
+    intent = response.content.strip().lower()
+    <span class="cm"># 防御性处理：LLM 没按格式返回时，默认 general</span>
+    <span class="kw">if</span> intent <span class="kw">not in</span> (<span class="str">"greeting"</span>, <span class="str">"technical"</span>, <span class="str">"general"</span>):
+        intent = <span class="str">"general"</span>
+    <span class="kw">return</span> {<span class="str">"intent"</span>: intent}
+
+<span class="cm"># ── 节点2a/b/c：三个不同的处理节点 ──────────────────────</span>
+<span class="kw">def</span> <span class="fn">greeting_handler</span>(state: <span class="cls">State</span>) -> dict:
+    response = llm.invoke([
+        SystemMessage(content=<span class="str">"用轻松愉快的语气回复，2句话以内"</span>),
+        HumanMessage(content=state[<span class="str">"question"</span>]),
+    ])
+    <span class="kw">return</span> {<span class="str">"answer"</span>: response.content}
+
+<span class="cm"># technical_handler 和 general_handler 类似，换 System Prompt 即可</span>
+
+<span class="cm"># ── 路由函数 ────────────────────────────────────────────</span>
+<span class="kw">def</span> <span class="fn">route_by_intent</span>(state: <span class="cls">State</span>) -> str:
+    intent = state[<span class="str">"intent"</span>]
+    <span class="kw">if</span> intent == <span class="str">"greeting"</span>:   <span class="kw">return</span> <span class="str">"greeting_handler"</span>
+    <span class="kw">elif</span> intent == <span class="str">"technical"</span>: <span class="kw">return</span> <span class="str">"technical_handler"</span>
+    <span class="kw">else</span>:                       <span class="kw">return</span> <span class="str">"general_handler"</span>
+
+<span class="cm"># ── 构建 Graph ───────────────────────────────────────────</span>
+graph_builder = <span class="cls">StateGraph</span>(State)
+graph_builder.add_node(<span class="str">"preprocess"</span>,        preprocess_node)  <span class="cm"># 新增</span>
+graph_builder.add_node(<span class="str">"classify"</span>,          classify_node)
+graph_builder.add_node(<span class="str">"greeting_handler"</span>,  greeting_handler)
+graph_builder.add_node(<span class="str">"technical_handler"</span>, technical_handler)
+graph_builder.add_node(<span class="str">"general_handler"</span>,   general_handler)
+graph_builder.add_node(<span class="str">"print_result"</span>,      print_result)
+
+<span class="cm"># ★ set_entry_point：入口是 preprocess，invoke() 从这里开始</span>
+graph_builder.set_entry_point(<span class="str">"preprocess"</span>)
+
+<span class="cm"># preprocess 执行完后，固定跳到 classify</span>
+graph_builder.add_edge(<span class="str">"preprocess"</span>, <span class="str">"classify"</span>)
+
+<span class="cm"># ★ add_conditional_edges：classify 执行完后做条件分支（与入口无关）</span>
+graph_builder.add_conditional_edges(
+    <span class="str">"classify"</span>, route_by_intent,  <span class="cm"># "classify" 指的是"从哪个节点出发"，不是入口</span>
+    {<span class="str">"greeting_handler"</span>: <span class="str">"greeting_handler"</span>,
+     <span class="str">"technical_handler"</span>: <span class="str">"technical_handler"</span>,
+     <span class="str">"general_handler"</span>: <span class="str">"general_handler"</span>}
+)
+
+<span class="cm"># 扇入：三条路径汇聚到同一个 print_result</span>
+graph_builder.add_edge(<span class="str">"greeting_handler"</span>,  <span class="str">"print_result"</span>)
+graph_builder.add_edge(<span class="str">"technical_handler"</span>, <span class="str">"print_result"</span>)
+graph_builder.add_edge(<span class="str">"general_handler"</span>,   <span class="str">"print_result"</span>)
+graph_builder.add_edge(<span class="str">"print_result"</span>, END)
+
+graph = graph_builder.compile()</code></pre>
+
+    <!-- 6. 流程图 -->
+    <div class="sec-title" id="l2-flow">
+      <div class="sec-num">6</div>
+      <h3>执行流程图</h3>
+    </div>
+
+<div class="flow">初始 State: { question: "什么是递归函数？", intent: "", answer: "" }
+      │
+      ▼
+ ┌─────────────────────────────────────────────────────────┐
+ │  [preprocess_node]                        ← 入口节点     │
+ │  set_entry_point("preprocess") 决定从这里开始            │
+ │  清理问题文本，返回 {"question": "..."}                   │
+ └─────────────────────────────────────────────────────────┘
+      │  add_edge("preprocess", "classify")  固定跳转
+      ▼
+ ┌─────────────────────────────────────────────────────────┐
+ │  [classify_node]                                        │
+ │  调用 LLM 识别意图  →  返回 {"intent": "technical"}      │
+ └─────────────────────────────────────────────────────────┘
+      │
+      │  add_conditional_edges("classify", route_by_intent)
+      │  route_by_intent(state) 被调用
+      │  state["intent"] == "technical"  →  返回 "technical_handler"
+      │
+      ├─ intent=="greeting"  ──▶  [greeting_handler]  ──┐
+      │                                                   │
+      ├─ intent=="technical" ──▶  [technical_handler] ──┤  ← 本次走这里
+      │                                                   │
+      └─ intent=="general"   ──▶  [general_handler]   ──┘
+                                                         │
+                                                  [print_result]
+                                                         │
+                                                        END</div>
+
+    <!-- 7. 总结 -->
+    <div class="sec-title" id="l2-summary">
+      <div class="sec-num">7</div>
+      <h3>核心知识点总结</h3>
+    </div>
+
+    <div class="kp-grid">
+      <div class="kp"><div class="kp-icon">⭐</div><div><strong>add_edge vs add_conditional_edges</strong><code>add_edge</code> 是固定路径，永远从 A 到 B；<code>add_conditional_edges</code> 是动态路径，根据路由函数的返回值决定去哪个节点。</div></div>
+      <div class="kp"><div class="kp-icon">⭐</div><div><strong>set_entry_point 和 add_conditional_edges 的第一个参数是完全不同的两件事</strong><code>set_entry_point("X")</code> = invoke() 时从 X 节点开始执行（全局入口）；<code>add_conditional_edges("X", fn)</code> = X 节点执行完之后，用 fn 决定下一步（X 节点的出边）。两者碰巧写同一个节点名，只是因为该节点恰好也是入口。加入 preprocess 节点后，入口变成 preprocess，条件边依然从 classify 出发，两者的职责就完全分开了。</div></div>
+      <div class="kp"><div class="kp-icon">⭐</div><div><strong>路由函数：只做决策，不做处理</strong>路由函数只读取 State 并返回节点名称字符串，真正的业务逻辑放在各个 handler 节点里。关注点分离让代码更清晰。</div></div>
+      <div class="kp"><div class="kp-icon">⭐</div><div><strong>扇出-扇入（Fan-out / Fan-in）模式</strong>从一个节点出发，分叉到多个节点（扇出）；多个节点执行完后，汇聚到同一个后续节点（扇入）。这是 Graph 中最常见的结构模式。</div></div>
+      <div class="kp"><div class="kp-icon">⭐</div><div><strong>LLM 路由的防御性处理</strong>用 LLM 做分类时，它可能不按格式返回。一定要加 fallback 逻辑（如 <code>if intent not in (...): intent = "general"</code>），避免路由函数返回不存在的节点名导致崩溃。</div></div>
+      <div class="kp"><div class="kp-icon">⭐</div><div><strong>映射表是可选的但推荐写出来</strong>提供映射表 <code>{"路由返回值": "节点名"}</code> 可以让 LangGraph 在 compile 阶段就检测出"返回了未注册的节点名"这类错误，而不是等到运行时才报错。</div></div>
+    </div>
+
+    <h4>API 速查表</h4>
+    <div class="table-wrap">
+      <table class="api-table">
+        <thead><tr><th>API</th><th>作用</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td><code>add_conditional_edges(node, fn)</code></td><td>添加条件边</td><td>fn 返回下一节点名称</td></tr>
+          <tr><td><code>add_conditional_edges(node, fn, map)</code></td><td>添加条件边（带映射）</td><td>map 做返回值→节点名转换</td></tr>
+          <tr><td><code>SystemMessage(content=...)</code></td><td>系统提示</td><td>from langchain_core.messages</td></tr>
+          <tr><td><code>HumanMessage(content=...)</code></td><td>用户消息</td><td>from langchain_core.messages</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div><!-- /lesson-content -->
+</section><!-- /lesson2 -->
+
+<div class="lesson-divider"></div>
+
+<!-- ╔══════════════════════════════════════════╗ -->
+<!-- ║  第三课                                   ║ -->
+<!-- ╚══════════════════════════════════════════╝ -->
+<section id="lesson3">
+  <div class="lesson-banner banner-green">
+    <div class="lesson-banner-inner">
+      <span class="lesson-tag">第三课 · Lesson 03</span>
+      <h2>ReAct Agent：让 LLM 循环调用工具</h2>
+      <p class="desc">掌握 ReAct 模式——LLM 推理、调用工具、观察结果、再推理，循环直到得出最终答案。这是构建真正能"干活"的 Agent 的核心结构。</p>
+      <div class="objectives">
+        <span class="obj-tag">Reducer / add_messages</span>
+        <span class="obj-tag">@tool 装饰器</span>
+        <span class="obj-tag">bind_tools()</span>
+        <span class="obj-tag">ToolNode（内置）</span>
+        <span class="obj-tag">tools_condition（内置）</span>
+        <span class="obj-tag">循环 Graph 结构</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="lesson-content">
+
+    <!-- 1. ReAct 是什么 -->
+    <div class="sec-title" id="l3-react">
+      <div class="sec-num">1</div>
+      <h3>ReAct 模式是什么？</h3>
+    </div>
+
+    <p>ReAct 是 <strong>Re</strong>ason + <strong>Act</strong> 的缩写。LLM 不是一次性给出答案，而是循环执行以下步骤：</p>
+
+    <div class="kp-grid">
+      <div class="kp"><div class="kp-icon">🧠</div><div><strong>Reason（推理）</strong>LLM 思考：当前问题需要什么信息？该调用哪个工具？参数是什么？</div></div>
+      <div class="kp"><div class="kp-icon">🔧</div><div><strong>Act（行动）</strong>LLM 声明调用某个工具，LangGraph 的 ToolNode 负责实际执行，返回工具结果。</div></div>
+      <div class="kp"><div class="kp-icon">👀</div><div><strong>Observe（观察）</strong>工具结果作为新消息追加到 messages 列表，LLM 在下一轮能看到这个结果，再决定下一步。</div></div>
+    </div>
+
+    <p>循环会一直执行，直到 LLM 认为已经有足够信息，不再调用工具，直接给出最终文字回答为止。</p>
+
+    <div class="card blue">
+      <div class="card-title">💡 与前两课的区别</div>
+      前两课的 Graph 都是"直线+分支"，每个节点最多执行一次。ReAct Agent 引入了<strong>循环</strong>——<code>tools</code> 节点执行完后，用 <code>add_edge("tools", "agent")</code> 把执行流导回 <code>agent</code> 节点，形成多轮循环。
+    </div>
+
+    <!-- 2. Reducer -->
+    <div class="sec-title" id="l3-reducer">
+      <div class="sec-num">2</div>
+      <h3>Reducer：add_messages（追加而不是覆盖）</h3>
+    </div>
+
+    <p>前两课的 State 字段是"覆盖"语义：节点返回 <code>{"answer": "新值"}</code> 会直接替换旧值。但消息历史需要"追加"——每轮对话的新消息要保留，不能覆盖之前的历史。</p>
+
+    <p>LangGraph 用 <strong>Reducer</strong> 解决这个问题：通过 <code>Annotated</code> 给字段指定合并函数。</p>
+
+<pre><code><span class="kw">from</span> typing <span class="kw">import</span> Annotated, TypedDict
+<span class="kw">from</span> langgraph.graph.message <span class="kw">import</span> add_messages
+<span class="kw">from</span> langchain_core.messages <span class="kw">import</span> BaseMessage
+
+<span class="kw">class</span> <span class="cls">State</span>(TypedDict):
+    <span class="cm"># Annotated 第2个参数 add_messages = "合并时追加，不覆盖"</span>
+    messages: Annotated[list[BaseMessage], add_messages]</code></pre>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>场景</th><th>普通字段</th><th>带 add_messages 的字段</th></tr></thead>
+        <tbody>
+          <tr><td>节点返回 <code>{"messages": [新消息]}</code></td><td>整个列表被替换为 [新消息]</td><td>新消息追加到列表末尾</td></tr>
+          <tr><td>执行3轮后</td><td>只保留最后一条</td><td>保留全部3轮的消息</td></tr>
+          <tr><td>适用场景</td><td>单次结果（answer, intent…）</td><td>对话历史、工具调用记录</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card orange">
+      <div class="card-title">⚠️ 消息数量的变化</div>
+      代码里打印了 <code>消息数：1</code> → <code>消息数：3</code>，这就是 add_messages 在起作用：第一轮1条（用户问题），工具调用后变成3条（用户问题 + AI的tool_calls声明 + 工具返回结果），第二轮 agent 看到的就是这3条完整历史。
+    </div>
+
+    <!-- 3. 工具定义 -->
+    <div class="sec-title" id="l3-tool">
+      <div class="sec-num">3</div>
+      <h3>工具定义与 bind_tools()</h3>
+    </div>
+
+    <p>用 <code>@tool</code> 装饰器把普通函数变成 LLM 可调用的工具。LangGraph 会自动提取函数名、docstring、参数类型作为工具描述传给 LLM。</p>
+
+<pre><code><span class="kw">from</span> langchain_core.tools <span class="kw">import</span> tool
+
+<span class="dec">@tool</span>
+<span class="kw">def</span> <span class="fn">add</span>(a: int, b: int) -> int:
+    <span class="str">"""计算两个整数的和"""</span>  <span class="cm"># docstring 就是工具描述，LLM 靠这个判断何时调用</span>
+    <span class="kw">return</span> a + b
+
+<span class="dec">@tool</span>
+<span class="kw">def</span> <span class="fn">get_weather</span>(city: str) -> str:
+    <span class="str">"""查询指定城市的天气情况"""</span>
+    <span class="kw">return</span> weather_data.get(city, <span class="str">f"暂无数据"</span>)
+
+tools = [add, multiply, get_weather]
+
+<span class="cm"># bind_tools：把工具注册到 LLM，LLM 的回复可能包含 tool_calls</span>
+llm_with_tools = llm.bind_tools(tools)</code></pre>
+
+    <div class="kp-grid">
+      <div class="kp"><div class="kp-icon">📝</div><div><strong>docstring 至关重要</strong>LLM 依靠 docstring 判断该调用哪个工具。描述要清晰准确，否则 LLM 可能调错工具或不调用工具。</div></div>
+      <div class="kp"><div class="kp-icon">🔗</div><div><strong>bind_tools() 后 LLM 的回复有两种可能</strong>普通文字回答（<code>content</code> 有值，<code>tool_calls</code> 为空）；或工具调用声明（<code>tool_calls</code> 有值，<code>content</code> 为空）。</div></div>
+    </div>
+
+    <!-- 4. ToolNode 与 tools_condition -->
+    <div class="sec-title" id="l3-builtin">
+      <div class="sec-num">4</div>
+      <h3>内置组件：ToolNode 与 tools_condition</h3>
+    </div>
+
+    <p>LangGraph 提供了两个内置组件，让你不需要手写工具执行和条件判断逻辑：</p>
+
+<pre><code><span class="kw">from</span> langgraph.prebuilt <span class="kw">import</span> ToolNode, tools_condition
+
+<span class="cm"># ToolNode：内置节点，自动执行工具调用</span>
+<span class="cm"># 做了什么：读取最后一条 AIMessage 的 tool_calls → 执行对应函数 → 包装成 ToolMessage 追加</span>
+graph_builder.add_node(<span class="str">"tools"</span>, <span class="cls">ToolNode</span>(tools))
+
+<span class="cm"># tools_condition：内置路由函数</span>
+<span class="cm"># 做了什么：检查最后一条消息是否有 tool_calls</span>
+<span class="cm">#   有 tool_calls → 返回 "tools"（去执行工具）</span>
+<span class="cm">#   没有         → 返回 END（LLM 已经给出最终答案）</span>
+graph_builder.add_conditional_edges(<span class="str">"agent"</span>, tools_condition)</code></pre>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>组件</th><th>类型</th><th>作用</th><th>等效手写代码</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><code>ToolNode(tools)</code></td><td>节点</td>
+            <td>读取 tool_calls，执行工具，追加 ToolMessage</td>
+            <td>需要手写20+行代码</td>
+          </tr>
+          <tr>
+            <td><code>tools_condition</code></td><td>路由函数</td>
+            <td>有 tool_calls → "tools"；无 → END</td>
+            <td><code>lambda s: "tools" if s["messages"][-1].tool_calls else END</code></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 5. 循环结构 -->
+    <div class="sec-title" id="l3-loop">
+      <div class="sec-num">5</div>
+      <h3>循环结构解析</h3>
+    </div>
+
+    <p>ReAct Agent 的 Graph 结构只有两个节点，但通过一条回边形成循环：</p>
+
+<pre><code>graph_builder.set_entry_point(<span class="str">"agent"</span>)
+
+graph_builder.add_conditional_edges(<span class="str">"agent"</span>, tools_condition)
+<span class="cm"># tools_condition 返回 "tools" 或 END</span>
+
+graph_builder.add_edge(<span class="str">"tools"</span>, <span class="str">"agent"</span>)
+<span class="cm"># ↑ 这条回边是循环的关键：tools 执行完后回到 agent</span></code></pre>
+
+    <p>循环的终止条件由 LLM 自己决定——当 LLM 认为已有足够信息，回复中不包含 <code>tool_calls</code>，<code>tools_condition</code> 就返回 <code>END</code>，循环结束。</p>
+
+    <div class="card purple">
+      <div class="card-title">🔮 并行工具调用</div>
+      从运行结果可以看到，问"北京和上海天气"时，LLM 同时发出了两个 <code>get_weather</code> 调用，ToolNode 并行执行后一起追加到 messages。这是 LLM 的优化行为——能一次解决的不分两次调用。
+    </div>
+
+    <!-- 6. 完整代码 -->
+    <div class="sec-title" id="l3-code">
+      <div class="sec-num">6</div>
+      <h3>完整代码讲解（03_react_agent.py）</h3>
+    </div>
+
+<pre><code><span class="cm"># ── State（Reducer 版本）─────────────────────────────────</span>
+<span class="kw">class</span> <span class="cls">State</span>(TypedDict):
+    messages: Annotated[list[BaseMessage], add_messages]
+    <span class="cm"># 没有 answer 字段！最终答案就是 messages 最后一条</span>
+
+<span class="cm"># ── 工具定义 ─────────────────────────────────────────────</span>
+<span class="dec">@tool</span>
+<span class="kw">def</span> <span class="fn">add</span>(a: int, b: int) -> int:
+    <span class="str">"""计算两个整数的和"""</span>
+    <span class="kw">return</span> a + b
+
+<span class="dec">@tool</span>
+<span class="kw">def</span> <span class="fn">multiply</span>(a: int, b: int) -> int:
+    <span class="str">"""计算两个整数的乘积"""</span>
+    <span class="kw">return</span> a * b
+
+<span class="dec">@tool</span>
+<span class="kw">def</span> <span class="fn">get_weather</span>(city: str) -> str:
+    <span class="str">"""查询指定城市的天气情况"""</span>
+    <span class="kw">return</span> weather_data.get(city, <span class="str">f"暂无数据"</span>)
+
+tools = [add, multiply, get_weather]
+llm_with_tools = llm.bind_tools(tools)  <span class="cm"># LLM 注册工具</span>
+
+<span class="cm"># ── Agent 节点 ────────────────────────────────────────────</span>
+<span class="kw">def</span> <span class="fn">agent_node</span>(state: <span class="cls">State</span>) -> dict:
+    response = llm_with_tools.invoke(state[<span class="str">"messages"</span>])
+    <span class="kw">return</span> {<span class="str">"messages"</span>: [response]}  <span class="cm"># add_messages 会追加，不覆盖</span>
+
+<span class="cm"># ── 构建 Graph ────────────────────────────────────────────</span>
+graph_builder = <span class="cls">StateGraph</span>(State)
+graph_builder.add_node(<span class="str">"agent"</span>, agent_node)
+graph_builder.add_node(<span class="str">"tools"</span>, <span class="cls">ToolNode</span>(tools))  <span class="cm"># 内置节点</span>
+
+graph_builder.set_entry_point(<span class="str">"agent"</span>)
+graph_builder.add_conditional_edges(<span class="str">"agent"</span>, tools_condition)  <span class="cm"># 内置路由</span>
+graph_builder.add_edge(<span class="str">"tools"</span>, <span class="str">"agent"</span>)  <span class="cm"># 循环回边</span>
+
+graph = graph_builder.compile()
+
+<span class="cm"># ── 运行 ──────────────────────────────────────────────────</span>
+result = graph.invoke({
+    <span class="str">"messages"</span>: [HumanMessage(content=<span class="str">"先算 6×7，再加 100"</span>)]
+})
+print(result[<span class="str">"messages"</span>][-<span class="num">1</span>].content)  <span class="cm"># 取最后一条消息即最终答案</span></code></pre>
+
+    <!-- 7. 流程图 -->
+    <div class="sec-title" id="l3-flow">
+      <div class="sec-num">7</div>
+      <h3>执行流程图（多轮循环）</h3>
+    </div>
+
+<div class="flow">问题："先算 6×7，再把结果加上 100"
+
+初始 State: { messages: [HumanMessage("先算 6×7，再加 100")] }
+      │
+      ▼
+ ┌─────────────────────────────────────────────────────────┐
+ │  [agent]  第1轮                                         │
+ │  llm_with_tools.invoke(messages)                        │
+ │  LLM 回复：AIMessage(tool_calls=[multiply(6,7), add(42,100)])│
+ │  messages 追加后：[Human, AI(tool_calls)]               │
+ └─────────────────────────────────────────────────────────┘
+      │  tools_condition：有 tool_calls → "tools"
+      ▼
+ ┌─────────────────────────────────────────────────────────┐
+ │  [tools]  ToolNode 执行                                 │
+ │  multiply(6, 7) = 42  → ToolMessage("42")              │
+ │  add(42, 100)  = 142  → ToolMessage("142")             │
+ │  messages 追加后：[Human, AI, Tool(42), Tool(142)]      │
+ └─────────────────────────────────────────────────────────┘
+      │  add_edge("tools", "agent")  ← 循环回边
+      ▼
+ ┌─────────────────────────────────────────────────────────┐
+ │  [agent]  第2轮                                         │
+ │  llm_with_tools.invoke(messages)  ← 看到了工具结果      │
+ │  LLM 回复：AIMessage(content="6×7=42，加100=142，答案142")│
+ │  没有 tool_calls！                                      │
+ └─────────────────────────────────────────────────────────┘
+      │  tools_condition：没有 tool_calls → END
+      ▼
+     END
+
+最终 messages[-1].content = "6×7=42，加100=142，最终结果是142"</div>
+
+    <!-- 8. 总结 -->
+    <div class="sec-title" id="l3-summary">
+      <div class="sec-num">8</div>
+      <h3>核心知识点总结</h3>
+    </div>
+
+    <div class="kp-grid">
+      <div class="kp"><div class="kp-icon">⭐</div><div><strong>Reducer（add_messages）：追加而不是覆盖</strong>用 <code>Annotated[list[BaseMessage], add_messages]</code> 声明字段，节点每次返回的新消息都会追加到列表末尾，保留完整的对话+工具调用历史。</div></div>
+      <div class="kp"><div class="kp-icon">⭐</div><div><strong>@tool + docstring = 工具描述</strong>LLM 依靠 docstring 判断何时调用哪个工具。docstring 要清晰，参数要有类型注解，否则 LLM 可能误用工具。</div></div>
+      <div class="kp"><div class="kp-icon">⭐</div><div><strong>bind_tools() 让 LLM "知道"工具存在</strong>未 bind 的工具 LLM 完全不知道，bind 后 LLM 的回复可能包含 <code>tool_calls</code>（工具调用声明），由 ToolNode 负责实际执行。</div></div>
+      <div class="kp"><div class="kp-icon">⭐</div><div><strong>add_edge("tools", "agent") 是循环的关键</strong>这条回边让 tools 执行完后重新进入 agent，形成多轮循环。没有它，工具执行完 Graph 就终止了，LLM 看不到工具结果。</div></div>
+      <div class="kp"><div class="kp-icon">⭐</div><div><strong>循环终止由 LLM 自主决定</strong>tools_condition 检查最后一条消息是否有 tool_calls。LLM 认为不需要再调用工具时，返回纯文字回复，tools_condition 路由到 END，循环自然结束。</div></div>
+      <div class="kp"><div class="kp-icon">⭐</div><div><strong>最终答案是 messages 的最后一条</strong>与前两课不同，ReAct Agent 没有单独的 answer 字段。运行结束后取 <code>result["messages"][-1].content</code> 即为最终答案。</div></div>
+    </div>
+
+    <h4>API 速查表</h4>
+    <div class="table-wrap">
+      <table class="api-table">
+        <thead><tr><th>API</th><th>作用</th><th>来源</th></tr></thead>
+        <tbody>
+          <tr><td><code>Annotated[list, add_messages]</code></td><td>声明消息追加字段</td><td>typing + langgraph</td></tr>
+          <tr><td><code>@tool</code></td><td>把函数变成工具</td><td>langchain_core.tools</td></tr>
+          <tr><td><code>llm.bind_tools(tools)</code></td><td>让 LLM 知道有哪些工具</td><td>ChatOpenAI 方法</td></tr>
+          <tr><td><code>ToolNode(tools)</code></td><td>内置工具执行节点</td><td>langgraph.prebuilt</td></tr>
+          <tr><td><code>tools_condition</code></td><td>内置路由函数</td><td>langgraph.prebuilt</td></tr>
+          <tr><td><code>messages[-1].content</code></td><td>取最终回答</td><td>Python 列表操作</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div><!-- /lesson-content -->
+</section><!-- /lesson3 -->
+
+<div class="lesson-divider"></div>
+
+<!-- ╔══════════════════════════════════════════╗ -->
+<!-- ║  第四课                                   ║ -->
+<!-- ╚══════════════════════════════════════════╝ -->
+<section id="lesson4">
+  <div class="lesson-banner banner-orange">
+    <div class="lesson-banner-inner">
+      <span class="lesson-tag">第四课 · Lesson 04</span>
+      <h2>Checkpointer：给 Agent 加上持久化记忆</h2>
+      <p class="desc">第三课的 Agent 每次 invoke 都从零开始，不知道上次说了什么。本课用 Checkpointer 保存每步 State 快照，让同一 thread_id 下的多次对话共享完整历史。</p>
+      <div class="objectives">
+        <span class="obj-tag">MemorySaver</span>
+        <span class="obj-tag">compile(checkpointer)</span>
+        <span class="obj-tag">thread_id 会话标识</span>
+        <span class="obj-tag">config 运行时参数</span>
+        <span class="obj-tag">多会话隔离</span>
+        <span class="obj-tag">get_state() 查看历史</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="lesson-content">
+
+    <!-- 1. 问题 -->
+    <div class="sec-title" id="l4-problem">
+      <div class="sec-num">1</div>
+      <h3>无记忆 Agent 的问题</h3>
+    </div>
+
+    <p>第三课的 Agent 每次 invoke 都是全新的——它不知道上一次对话说了什么：</p>
+
+<pre><code><span class="cm"># 第三课的写法（无记忆）</span>
+graph.invoke({<span class="str">"messages"</span>: [HumanMessage(<span class="str">"3×4 等于多少？"</span>)]})
+<span class="cm"># → AI：12</span>
+
+graph.invoke({<span class="str">"messages"</span>: [HumanMessage(<span class="str">"把刚才的结果加上 8"</span>)]})
+<span class="cm"># → AI：不知道"刚才的结果"是什么，无法回答</span></code></pre>
+
+    <p>原因是：每次 invoke 传入的是全新的初始 State，之前对话的 messages 没有被保存，也没有被传入。</p>
+
+    <div class="card blue">
+      <div class="card-title">💡 Checkpointer 解决了什么</div>
+      Checkpointer 在每个节点执行后自动保存当前 State 快照。下次同一 <code>thread_id</code> 调用时，LangGraph 先从 Checkpointer 恢复上次的 State，再把新消息追加进去，LLM 就能看到完整的对话历史。
+    </div>
+
+    <!-- 2. Checkpointer 原理 -->
+    <div class="sec-title" id="l4-checkpointer">
+      <div class="sec-num">2</div>
+      <h3>Checkpointer 原理</h3>
+    </div>
+
+    <p>Checkpointer 的工作流程如下：</p>
+
+<div class="flow">第1次 invoke(thread_id="A", "3×4=?")
+  ├── 查找 thread_id="A" 的历史快照  →  空（第一次）
+  ├── 初始 State = { messages: [Human("3×4=?")] }
+  ├── 正常执行 Graph（agent → tools → agent → END）
+  └── 保存最终 State 快照到 thread_id="A"
+
+第2次 invoke(thread_id="A", "把刚才的结果加上8")
+  ├── 查找 thread_id="A" 的历史快照  →  找到！
+  ├── 恢复 State = { messages: [Human, AI(tool), Tool, AI("12")] }
+  ├── 把新消息追加进去（add_messages）
+  ├── State = { messages: [Human, AI, Tool, AI, Human("加上8")] }
+  ├── LLM 看到完整历史，知道"刚才的结果"是 12
+  └── 保存最新快照</div>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Checkpointer 类型</th><th>存储位置</th><th>适用场景</th></tr></thead>
+        <tbody>
+          <tr><td><code>MemorySaver</code></td><td>进程内存</td><td>开发测试，重启后丢失</td></tr>
+          <tr><td><code>SqliteSaver</code></td><td>本地 SQLite 文件</td><td>单机持久化</td></tr>
+          <tr><td><code>PostgresSaver</code></td><td>PostgreSQL 数据库</td><td>生产环境，多进程共享</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card green">
+      <div class="card-title">✅ 三种 Checkpointer 接口完全相同</div>
+      只需在 <code>compile(checkpointer=...)</code> 处替换，其他代码一行不用改。开发用 MemorySaver，上线换 PostgresSaver，零成本迁移。
+    </div>
+
+    <!-- 3. thread_id -->
+    <div class="sec-title" id="l4-thread">
+      <div class="sec-num">3</div>
+      <h3>thread_id 与多会话隔离</h3>
+    </div>
+
+    <p><code>thread_id</code> 是会话的唯一标识符，决定了"这次 invoke 属于哪个对话"：</p>
+
+<pre><code><span class="cm"># config 是 LangGraph 运行时参数，每次 invoke 都要传</span>
+config_alice = {<span class="str">"configurable"</span>: {<span class="str">"thread_id"</span>: <span class="str">"user_alice"</span>}}
+config_bob   = {<span class="str">"configurable"</span>: {<span class="str">"thread_id"</span>: <span class="str">"user_bob"</span>}}
+
+graph.invoke({<span class="str">"messages"</span>: [HumanMessage(<span class="str">"5+6=?"</span>)]},  config=config_alice)
+<span class="cm"># Alice 的会话：知道 5+6=11</span>
+
+graph.invoke({<span class="str">"messages"</span>: [HumanMessage(<span class="str">"刚才那道题答案？"</span>)]}, config=config_bob)
+<span class="cm"># Bob 的会话：全新，不知道 Alice 问了什么</span></code></pre>
+
+    <div class="kp-grid">
+      <div class="kp"><div class="kp-icon">🔑</div><div><strong>thread_id 可以是任意字符串</strong>实际项目中通常用用户ID、会话UUID等业务标识。同一用户可以有多个 thread_id（多个独立对话）。</div></div>
+      <div class="kp"><div class="kp-icon">⚠️</div><div><strong>忘传 config 是常见错误</strong>如果 invoke 时不传 config，Checkpointer 不知道是哪个会话，每次都是全新状态，记忆功能失效。</div></div>
+    </div>
+
+    <!-- 4. 完整代码 -->
+    <div class="sec-title" id="l4-code">
+      <div class="sec-num">4</div>
+      <h3>完整代码讲解（04_memory_agent.py）</h3>
+    </div>
+
+<pre><code><span class="cm"># State、工具、节点与第三课完全相同，唯一的区别在 compile</span>
+
+<span class="kw">from</span> langgraph.checkpoint.memory <span class="kw">import</span> MemorySaver
+
+<span class="cm"># ★ 第1处变化：创建 Checkpointer</span>
+memory = <span class="cls">MemorySaver</span>()
+
+<span class="cm"># ★ 第2处变化：compile 时注入 checkpointer</span>
+graph = graph_builder.compile(checkpointer=memory)
+
+<span class="cm"># ★ 第3处变化：invoke 时传入 config（指定 thread_id）</span>
+<span class="kw">def</span> <span class="fn">chat</span>(thread_id: str, user_message: str) -> str:
+    config = {<span class="str">"configurable"</span>: {<span class="str">"thread_id"</span>: thread_id}}
+    result = graph.invoke(
+        {<span class="str">"messages"</span>: [HumanMessage(content=user_message)]},
+        config=config,
+    )
+    <span class="kw">return</span> result[<span class="str">"messages"</span>][-<span class="num">1</span>].content
+
+<span class="cm"># 多轮对话</span>
+chat(<span class="str">"session_A"</span>, <span class="str">"3 乘以 4 等于多少？"</span>)    <span class="cm"># → 12</span>
+chat(<span class="str">"session_A"</span>, <span class="str">"把刚才的结果再加上 8"</span>)    <span class="cm"># → 20（记住了上轮结果）</span>
+chat(<span class="str">"session_A"</span>, <span class="str">"我们算了几道题？"</span>)        <span class="cm"># → 2道（完整历史可见）</span>
+
+<span class="cm"># 查看某会话的完整历史</span>
+state_snapshot = graph.get_state({<span class="str">"configurable"</span>: {<span class="str">"thread_id"</span>: <span class="str">"session_A"</span>}})
+<span class="kw">for</span> msg <span class="kw">in</span> state_snapshot.values[<span class="str">"messages"</span>]:
+    print(msg.__class__.__name__, msg.content[:<span class="num">50</span>])</code></pre>
+
+    <!-- 5. 执行机制图 -->
+    <div class="sec-title" id="l4-flow">
+      <div class="sec-num">5</div>
+      <h3>执行机制图</h3>
+    </div>
+
+<div class="flow">运行结果中 session_A 的完整 messages（10条）：
+
+  [1]  Human  : "3 乘以 4 等于多少？"
+  [2]  AI     : (空 content，tool_calls=[multiply(3,4)])
+  [3]  Tool   : "12"
+  [4]  AI     : "3 乘以 4 等于 12。"
+  [5]  Human  : "把刚才的结果再加上 8 是多少？"
+  [6]  AI     : (空 content，tool_calls=[add(12,8)])
+  [7]  Tool   : "20"
+  [8]  AI     : "把 12 加上 8 等于 20。"
+  [9]  Human  : "我们这次对话一共算了几道数学题？"
+  [10] AI     : "我们这次对话一共算了 2 道数学题..."
+
+每次 invoke 新消息追加在末尾，LLM 始终能看到 [1]~[n] 的完整历史。
+Checkpointer 保存的正是这个 messages 列表（以及 State 的其他字段）。</div>
+
+    <!-- 6. 总结 -->
+    <div class="sec-title" id="l4-summary">
+      <div class="sec-num">6</div>
+      <h3>核心知识点总结</h3>
+    </div>
+
+    <div class="kp-grid">
+      <div class="kp"><div class="kp-icon">⭐</div><div><strong>只需3处改动就能加上记忆</strong>① 创建 <code>MemorySaver()</code>；② <code>compile(checkpointer=memory)</code>；③ invoke 时传 <code>config={"configurable": {"thread_id": "xxx"}}</code>。State、节点、边一行不用改。</div></div>
+      <div class="kp"><div class="kp-icon">⭐</div><div><strong>Checkpointer 保存的是完整 State，不只是消息</strong>如果 State 里有其他字段（如 intent、answer），也会被保存和恢复。这让跨轮次的复杂状态流转成为可能。</div></div>
+      <div class="kp"><div class="kp-icon">⭐</div><div><strong>thread_id 决定会话边界</strong>相同 thread_id = 同一对话（共享历史）；不同 thread_id = 独立对话（互不影响）。实际项目中用用户ID或会话UUID作为 thread_id。</div></div>
+      <div class="kp"><div class="kp-icon">⭐</div><div><strong>get_state() 可以随时查看快照</strong><code>graph.get_state(config)</code> 返回指定会话当前的完整 State，可用于调试、审计或展示对话历史。</div></div>
+      <div class="kp"><div class="kp-icon">⭐</div><div><strong>MemorySaver 仅用于开发测试</strong>进程重启后所有会话历史丢失。生产环境替换为 <code>SqliteSaver</code> 或 <code>PostgresSaver</code>，接口完全一致，只改 compile 一行代码。</div></div>
+    </div>
+
+    <h4>API 速查表</h4>
+    <div class="table-wrap">
+      <table class="api-table">
+        <thead><tr><th>API</th><th>作用</th><th>来源</th></tr></thead>
+        <tbody>
+          <tr><td><code>MemorySaver()</code></td><td>创建内存级 Checkpointer</td><td>langgraph.checkpoint.memory</td></tr>
+          <tr><td><code>compile(checkpointer=memory)</code></td><td>编译时注入持久化能力</td><td>StateGraph 方法</td></tr>
+          <tr><td><code>{"configurable": {"thread_id": "x"}}</code></td><td>运行时会话配置</td><td>invoke/stream 的 config 参数</td></tr>
+          <tr><td><code>graph.get_state(config)</code></td><td>查看指定会话的当前 State</td><td>编译后的 graph 方法</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div><!-- /lesson-content -->
+</section><!-- /lesson4 -->
+
+<div class="lesson-divider"></div>
+
+<!-- ╔══════════════════════════════════════════╗ -->
+<!-- ║  第五课                                   ║ -->
+<!-- ╚══════════════════════════════════════════╝ -->
+<section id="lesson5">
+  <div class="lesson-banner" style="background: linear-gradient(135deg, #0f4c75 0%, #1b6ca8 100%);">
+    <div class="lesson-banner-inner">
+      <span class="lesson-tag">第五课 · Lesson 05</span>
+      <h2>Human-in-the-Loop：人工介入与审核</h2>
+      <p class="desc">让 Agent 在执行危险操作前暂停，等待人工审核。人可以批准、拒绝、或修改参数后再继续——这是 AI 安全落地的关键机制。</p>
+      <div class="objectives">
+        <span class="obj-tag">interrupt_before</span>
+        <span class="obj-tag">invoke(None) 恢复</span>
+        <span class="obj-tag">update_state 拒绝/修改</span>
+        <span class="obj-tag">as_node 参数</span>
+        <span class="obj-tag">get_state 查看暂停状态</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="lesson-content">
+
+    <!-- 1. 为什么需要人工介入 -->
+    <div class="sec-title" id="l5-why">
+      <div class="sec-num">1</div>
+      <h3>为什么需要人工介入？</h3>
+    </div>
+
+    <p>前几课的 Agent 一旦 invoke 就会自动执行到底，中途没有任何停顿。这对以下场景是危险的：</p>
+
+    <div class="kp-grid">
+      <div class="kp"><div class="kp-icon">⚠️</div><div><strong>不可逆操作</strong>删除文件、发送邮件、提交数据库事务——一旦执行无法撤回。</div></div>
+      <div class="kp"><div class="kp-icon">⚠️</div><div><strong>高风险操作</strong>转账、修改权限、调用付费 API——执行前需要人工确认金额、范围是否正确。</div></div>
+      <div class="kp"><div class="kp-icon">⚠️</div><div><strong>LLM 可能误解意图</strong>用户说"清理一下日志"，LLM 可能理解为删除所有日志文件。让人看一眼再执行更安全。</div></div>
+    </div>
+
+    <div class="card blue">
+      <div class="card-title">💡 核心思路</div>
+      在 <strong>工具执行节点之前</strong>插入一个暂停点。Agent 完成规划（决定调用什么工具、什么参数）后，Graph 暂停，把控制权交还给外部程序，等待人类做出决定后再继续。
+    </div>
+
+    <!-- 2. interrupt_before 原理 -->
+    <div class="sec-title" id="l5-interrupt">
+      <div class="sec-num">2</div>
+      <h3>interrupt_before 原理</h3>
+    </div>
+
+    <p><code>interrupt_before</code> 是 <code>compile()</code> 的参数，指定在哪个节点执行前暂停：</p>
+
+<pre><code><span class="cm"># ★ 与第四课唯一的区别：多了 interrupt_before 参数</span>
+graph = graph_builder.compile(
+    checkpointer=memory,
+    interrupt_before=[<span class="str">"tools"</span>],  <span class="cm"># 每次即将执行 tools 节点前暂停</span>
+)
+
+<span class="cm"># 第一次 invoke：Agent 规划完成，在 tools 前暂停，返回当前 State</span>
+graph.invoke(
+    {<span class="str">"messages"</span>: [HumanMessage(<span class="str">"给 boss 发一封周报邮件"</span>)]},
+    config=config,
+)
+<span class="cm"># ↑ 此时 Agent 已经决定调用 send_email，但还没执行</span>
+<span class="cm"># graph.invoke 提前返回，等待人工指令</span>
+
+<span class="cm"># 查看 Agent 准备做什么</span>
+state = graph.get_state(config)
+pending_tools = state.values[<span class="str">"messages"</span>][-<span class="num">1</span>].tool_calls
+print(pending_tools)  <span class="cm"># [{'name': 'send_email', 'args': {...}}]</span></code></pre>
+
+    <div class="card orange">
+      <div class="card-title">⚠️ 前提条件</div>
+      <code>interrupt_before</code> 必须配合 <code>checkpointer</code> 使用。Checkpointer 负责保存暂停时的完整 State，这样才能在人工决策后从断点恢复。没有 Checkpointer，暂停状态会丢失。
+    </div>
+
+    <!-- hasattr 说明 -->
+    <div class="sec-title" id="l5-hasattr">
+      <div class="sec-num">3</div>
+      <h3>常见疑问：hasattr 判断是什么意思？</h3>
+    </div>
+
+    <p>查看暂停状态时经常看到这段代码：</p>
+
+<pre><code><span class="kw">if</span> hasattr(last_msg, <span class="str">"tool_calls"</span>) <span class="kw">and</span> last_msg.tool_calls:
+    ...</code></pre>
+
+    <p>这是两层保险，缺一不可：</p>
+
+    <div class="kp-grid">
+      <div class="kp">
+        <div class="kp-icon">1️⃣</div>
+        <div>
+          <strong>hasattr(last_msg, "tool_calls") —— 检查属性是否存在</strong>
+          消息有多种类型：<code>HumanMessage</code>、<code>AIMessage</code>、<code>ToolMessage</code>。
+          只有 <code>AIMessage</code> 才有 <code>tool_calls</code> 属性，其他类型根本没有这个字段。
+          直接访问不存在的属性会抛出 <code>AttributeError</code>，所以先用 <code>hasattr</code> 探一下。
+        </div>
+      </div>
+      <div class="kp">
+        <div class="kp-icon">2️⃣</div>
+        <div>
+          <strong>last_msg.tool_calls —— 检查值是否非空</strong>
+          即使属性存在，值也可能是空列表 <code>[]</code>（LLM 没有调用任何工具，直接文字回答）。
+          空列表在 Python 中是 <code>False</code>，这一层确保里面真的有工具调用内容。
+        </div>
+      </div>
+    </div>
+
+    <p>两个条件合起来的含义：<strong>"这条消息是 AIMessage，并且 LLM 声明要调用至少一个工具"</strong></p>
+
+    <p>更清晰的等价写法（推荐）：</p>
+
+<pre><code><span class="kw">from</span> langchain_core.messages <span class="kw">import</span> AIMessage
+
+<span class="cm"># isinstance 比 hasattr 更语义化：明确说"这是一条 AI 消息"</span>
+<span class="kw">if</span> isinstance(last_msg, AIMessage) <span class="kw">and</span> last_msg.tool_calls:
+    ...</code></pre>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>消息类型</th><th>有 tool_calls 属性？</th><th>可能的值</th></tr></thead>
+        <tbody>
+          <tr><td><code>HumanMessage</code></td><td>❌ 没有</td><td>—</td></tr>
+          <tr><td><code>AIMessage</code>（文字回答）</td><td>✅ 有</td><td><code>[]</code>（空列表）</td></tr>
+          <tr><td><code>AIMessage</code>（工具调用）</td><td>✅ 有</td><td><code>[{'name': 'xxx', 'args': {...}}]</code></td></tr>
+          <tr><td><code>ToolMessage</code></td><td>❌ 没有</td><td>—</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 4. 批准 -->
+    <div class="sec-title" id="l5-approve">
+      <div class="sec-num">4</div>
+      <h3>批准：invoke(None, config) 恢复执行</h3>
+    </div>
+
+<pre><code><span class="cm"># 人工确认后，传 None 恢复执行</span>
+<span class="cm"># None 表示：不新增任何消息，从暂停点继续往下走</span>
+result = graph.invoke(<span class="bi">None</span>, config=config)
+
+<span class="cm"># Graph 从暂停点（tools 节点入口）继续执行：</span>
+<span class="cm"># tools → agent（看到工具结果）→ tools_condition（无 tool_calls）→ END</span></code></pre>
+
+    <!-- 5. 拒绝 -->
+    <div class="sec-title" id="l5-reject">
+      <div class="sec-num">5</div>
+      <h3>拒绝：update_state 注入取消消息</h3>
+    </div>
+
+    <p>拒绝的核心思路：把 Checkpointer 里待执行的 <code>AIMessage(tool_calls=[...])</code> 替换成一条无 tool_calls 的消息，这样 <code>tools_condition</code> 就会路由到 END。</p>
+
+<pre><code><span class="cm"># update_state：直接修改 Checkpointer 中保存的 State 快照</span>
+graph.update_state(
+    config,
+    {<span class="str">"messages"</span>: [AIMessage(content=<span class="str">"用户拒绝了该操作，已取消。"</span>)]},
+    as_node=<span class="str">"agent"</span>,   <span class="cm"># 关键：告诉 LangGraph 这次更新视为 agent 节点的输出</span>
+)
+<span class="cm"># as_node="agent" 的作用：</span>
+<span class="cm"># LangGraph 认为 agent 节点刚刚运行完，接下来走 tools_condition</span>
+<span class="cm"># 新消息没有 tool_calls → tools_condition 返回 END → 直接结束</span>
+
+result = graph.invoke(<span class="bi">None</span>, config=config)
+<span class="cm"># 最终回复就是我们注入的取消消息</span></code></pre>
+
+    <!-- 6. 修改参数 -->
+    <div class="sec-title" id="l5-modify">
+      <div class="sec-num">6</div>
+      <h3>修改参数后批准</h3>
+    </div>
+
+    <p>最强大的用法：人工发现参数有误（如金额过大），直接修改参数后让工具以正确参数执行：</p>
+
+<pre><code><span class="cm"># 获取当前 Agent 计划调用的 AIMessage</span>
+state = graph.get_state(config)
+last_ai_msg = state.values[<span class="str">"messages"</span>][-<span class="num">1</span>]
+
+<span class="cm"># 构造修改后的消息（保留 tool_calls 结构，只改参数）</span>
+modified_tool_calls = []
+<span class="kw">for</span> tc <span class="kw">in</span> last_ai_msg.tool_calls:
+    modified_tc = dict(tc)
+    modified_tc[<span class="str">"args"</span>] = {**tc[<span class="str">"args"</span>], <span class="str">"amount"</span>: <span class="num">100.0</span>}  <span class="cm"># 把 999999 改为 100</span>
+    modified_tool_calls.append(modified_tc)
+
+modified_msg = AIMessage(
+    content=last_ai_msg.content,
+    tool_calls=modified_tool_calls,
+)
+
+<span class="cm"># 替换原始 AIMessage，as_node="agent" 让 Graph 继续走 tools 分支</span>
+graph.update_state(config, {<span class="str">"messages"</span>: [modified_msg]}, as_node=<span class="str">"agent"</span>)
+
+<span class="cm"># 恢复执行，tools 节点以修改后的参数（amount=100）执行工具</span>
+result = graph.invoke(<span class="bi">None</span>, config=config)</code></pre>
+
+    <!-- 7. 流程图 -->
+    <div class="sec-title" id="l5-flow">
+      <div class="sec-num">7</div>
+      <h3>三种处理方式流程图</h3>
+    </div>
+
+<div class="flow">Agent 规划完成，暂停于 tools 节点入口
+      │
+      ▼
+ [人工审核] 查看 state.values["messages"][-1].tool_calls
+
+      ├── ✅ 批准 ──────────────────────────────────────────────────┐
+      │   graph.invoke(None, config)                               │
+      │   → tools 节点正常执行 → agent 看到结果 → END              │
+      │                                                            │
+      ├── ❌ 拒绝 ──────────────────────────────────────────────────┤
+      │   update_state(AIMessage("已取消"), as_node="agent")       │
+      │   graph.invoke(None, config)                               │
+      │   → tools_condition 发现无 tool_calls → 直接 END            │
+      │                                                            │
+      └── ✏️  修改 ──────────────────────────────────────────────────┘
+          update_state(修改后的 AIMessage, as_node="agent")
+          graph.invoke(None, config)
+          → tools 节点以新参数执行 → agent 看到结果 → END</div>
+
+    <!-- 8. 进阶：选择性审核 -->
+    <div class="sec-title" id="l5-selective">
+      <div class="sec-num">8</div>
+      <h3>进阶：部分工具需要确认，部分直接执行</h3>
+    </div>
+
+    <p><code>interrupt_before</code> 是<strong>节点级别</strong>的，不是工具级别的。要实现"只拦截危险工具"，需要把工具按安全性拆进两个不同的 <code>ToolNode</code>，只对危险工具节点设置暂停。</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th></th><th>内置 tools_condition（单节点）</th><th>自定义路由（双节点）</th></tr></thead>
+        <tbody>
+          <tr><td>工具节点</td><td>一个 <code>tools</code> 节点装所有工具</td><td><code>safe_tool_node</code> + <code>dangerous_tool_node</code></td></tr>
+          <tr><td>暂停范围</td><td>所有工具调用前都暂停</td><td>只有危险工具节点前暂停</td></tr>
+          <tr><td>路由函数</td><td>内置 <code>tools_condition</code></td><td>自定义 <code>selective_router</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+<pre><code><span class="cm"># 工具分组</span>
+SAFE_TOOLS      = [get_weather, calculate]      <span class="cm"># 直接执行</span>
+DANGEROUS_TOOLS = [send_email, delete_files]    <span class="cm"># 需要审核</span>
+DANGEROUS_NAMES = {t.name <span class="kw">for</span> t <span class="kw">in</span> DANGEROUS_TOOLS}
+
+<span class="cm"># 自定义路由：根据 tool_calls 的工具名决定去哪个节点</span>
+<span class="kw">def</span> <span class="fn">selective_router</span>(state):
+    <span class="kw">from</span> langchain_core.messages <span class="kw">import</span> AIMessage
+    last = state[<span class="str">"messages"</span>][-<span class="num">1</span>]
+    <span class="kw">if not</span> isinstance(last, AIMessage) <span class="kw">or not</span> last.tool_calls:
+        <span class="kw">return</span> END
+    names = {tc[<span class="str">"name"</span>] <span class="kw">for</span> tc <span class="kw">in</span> last.tool_calls}
+    <span class="kw">if</span> names & DANGEROUS_NAMES:   <span class="cm"># 交集非空 = 含有危险工具</span>
+        <span class="kw">return</span> <span class="str">"dangerous_tool_node"</span>
+    <span class="kw">return</span> <span class="str">"safe_tool_node"</span>
+
+<span class="cm"># 构建 Graph</span>
+graph_builder.add_node(<span class="str">"agent"</span>,               agent_node)
+graph_builder.add_node(<span class="str">"safe_tool_node"</span>,      ToolNode(SAFE_TOOLS))
+graph_builder.add_node(<span class="str">"dangerous_tool_node"</span>, ToolNode(DANGEROUS_TOOLS))
+graph_builder.set_entry_point(<span class="str">"agent"</span>)
+graph_builder.add_conditional_edges(<span class="str">"agent"</span>, selective_router)
+graph_builder.add_edge(<span class="str">"safe_tool_node"</span>,      <span class="str">"agent"</span>)
+graph_builder.add_edge(<span class="str">"dangerous_tool_node"</span>, <span class="str">"agent"</span>)
+
+graph = graph_builder.compile(
+    checkpointer=memory,
+    interrupt_before=[<span class="str">"dangerous_tool_node"</span>],  <span class="cm"># 只拦截危险工具节点</span>
+)</code></pre>
+
+<div class="flow">agent
+  │
+  ├─ tool_calls 全是安全工具  ──▶  [safe_tool_node]       直接执行，无暂停
+  │                                      │
+  │                                      └──▶ agent（循环）
+  │
+  ├─ tool_calls 含有危险工具  ──▶  [dangerous_tool_node]  ← interrupt_before 在这里
+  │                                      │（人工审核后才执行）
+  │                                      └──▶ agent（循环）
+  │
+  └─ 无 tool_calls            ──▶  END
+
+运行结果验证：
+  "查天气 + 计算"  →  safe_tool_node  →  无暂停，直接跑完
+  "查天气 + 发邮件" →  含 send_email  →  dangerous_tool_node  →  暂停等审核</div>
+
+    <div class="card green">
+      <div class="card-title">✅ 核心设计原则</div>
+      <code>interrupt_before</code> 是<strong>节点级别</strong>的暂停，不是工具级别的。要实现工具粒度的控制，就把工具按安全性分配到不同节点，然后只对危险节点设置 interrupt。
+    </div>
+
+    <!-- 9. 总结 -->
+    <div class="sec-title" id="l5-summary">
+      <div class="sec-num">9</div>
+      <h3>核心知识点总结</h3>
+    </div>
+
+    <div class="kp-grid">
+      <div class="kp"><div class="kp-icon">⭐</div><div><strong>hasattr + tool_calls 的两层判断</strong><code>hasattr(msg, "tool_calls")</code> 检查属性是否存在（只有 AIMessage 有），<code>msg.tool_calls</code> 检查值是否非空。更清晰的写法：<code>isinstance(msg, AIMessage) and msg.tool_calls</code>。</div></div>
+      <div class="kp"><div class="kp-icon">⭐</div><div><strong>interrupt_before 必须配合 Checkpointer</strong>Checkpointer 保存暂停时的完整 State，人工决策后才能从断点恢复。两者缺一不可。</div></div>
+      <div class="kp"><div class="kp-icon">⭐</div><div><strong>invoke(None) = 从暂停处继续，不新增消息</strong>传 <code>None</code> 告诉 LangGraph：不要追加新消息，直接从上次暂停的节点入口继续执行。</div></div>
+      <div class="kp"><div class="kp-icon">⭐</div><div><strong>update_state 直接修改 Checkpointer 的快照</strong>可以修改任何 State 字段。<code>as_node="agent"</code> 指定这次修改视为哪个节点的输出，LangGraph 据此决定恢复后的执行路径。</div></div>
+      <div class="kp"><div class="kp-icon">⭐</div><div><strong>拒绝的本质是"替换 AIMessage 内容"</strong>把含有 tool_calls 的 AIMessage 替换成不含 tool_calls 的普通文字消息，tools_condition 就会路由到 END，工具永远不会被执行。</div></div>
+      <div class="kp"><div class="kp-icon">⭐</div><div><strong>选择性审核：interrupt_before 是节点级别的</strong>要实现"只拦截危险工具"，需把工具按安全性拆进两个不同的 ToolNode，只对危险工具节点设置 <code>interrupt_before</code>。自定义路由函数根据 tool_calls 的工具名决定去哪个节点。</div></div>
+    </div>
+
+    <h4>API 速查表</h4>
+    <div class="table-wrap">
+      <table class="api-table">
+        <thead><tr><th>API</th><th>作用</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td><code>compile(interrupt_before=["tools"])</code></td><td>设置暂停节点</td><td>必须配合 checkpointer</td></tr>
+          <tr><td><code>graph.invoke(None, config)</code></td><td>从暂停处继续</td><td>None = 不新增消息</td></tr>
+          <tr><td><code>graph.get_state(config)</code></td><td>查看暂停时的 State</td><td>含 messages[-1].tool_calls</td></tr>
+          <tr><td><code>graph.update_state(config, values, as_node)</code></td><td>修改 State 快照</td><td>as_node 决定恢复路径</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div><!-- /lesson-content -->
+</section><!-- /lesson5 -->
+
+<div class="lesson-divider"></div>
+
+<!-- ╔══════════════════════════════════════════╗ -->
+<!-- ║  第六课                                   ║ -->
+<!-- ╚══════════════════════════════════════════╝ -->
+<section id="lesson6">
+  <div class="lesson-banner" style="background: linear-gradient(135deg, #134e4a 0%, #0f766e 100%);">
+    <div class="lesson-banner-inner">
+      <span class="lesson-tag">第六课 · Lesson 06</span>
+      <h2>多 Agent 协作：Supervisor 模式</h2>
+      <p class="desc">一个"调度 LLM"负责分析任务进度、决定交给哪个专家处理，专家完成后汇报，Supervisor 再决定下一步——直到所有子任务完成。</p>
+      <div class="objectives">
+        <span class="obj-tag">Supervisor 调度节点</span>
+        <span class="obj-tag">next 字段路由</span>
+        <span class="obj-tag">专家 Agent 设计</span>
+        <span class="obj-tag">多节点循环</span>
+        <span class="obj-tag">vs 单 Agent ReAct</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="lesson-content">
+
+    <!-- 1. 为什么需要多 Agent -->
+    <div class="sec-title" id="l6-why">
+      <div class="sec-num">1</div>
+      <h3>为什么需要多 Agent？</h3>
+    </div>
+
+    <p>第三课的 ReAct Agent 是单个 LLM 自己循环调工具，适合大多数场景。但当任务变得复杂时，单 Agent 方案会遇到瓶颈：</p>
+
+    <div class="kp-grid">
+      <div class="kp"><div class="kp-icon">⚠️</div><div><strong>工具太多，LLM 容易混乱</strong>把几十个工具都绑定到一个 LLM，它往往不知道该选哪个，或者会乱用工具。</div></div>
+      <div class="kp"><div class="kp-icon">⚠️</div><div><strong>不同子任务需要不同专业性</strong>"查资料"和"写代码"的最佳系统提示完全不同，强行用一个 Agent 处理所有事情效果不好。</div></div>
+      <div class="kp"><div class="kp-icon">⚠️</div><div><strong>需要并行或流水线执行</strong>复杂任务可以拆成多个子任务，由专门的 Agent 并行或串行处理，提高效率和质量。</div></div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>对比</th><th>单 Agent（第三课）</th><th>多 Agent Supervisor（本课）</th></tr></thead>
+        <tbody>
+          <tr><td>工具绑定</td><td>所有工具绑给同一个 LLM</td><td>每个专家只绑定自己领域的工具</td></tr>
+          <tr><td>系统提示</td><td>一份通用提示</td><td>每个专家有专属提示，角色更聚焦</td></tr>
+          <tr><td>决策者</td><td>LLM 自己决定下一步调哪个工具</td><td>Supervisor LLM 决定下一步交给哪个专家</td></tr>
+          <tr><td>适用场景</td><td>工具数量少、任务相对简单</td><td>跨领域复合任务、工具数量多</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 2. Supervisor 模式架构 -->
+    <div class="sec-title" id="l6-pattern">
+      <div class="sec-num">2</div>
+      <h3>Supervisor 模式架构</h3>
+    </div>
+
+    <p>Supervisor 模式的核心是一个"调度节点"——它不执行任务，只做决策：</p>
+
+<div class="flow">         ┌────────────────────────────────────────┐
+         │                                        │
+  START ──▶  [supervisor]  ──▶  [researcher]  ──┤
+                  │                               │
+                  ├──▶  [analyst]    ─────────────┘
+                  │
+                  └──▶  END（当 next == "FINISH"）
+
+Supervisor 每次执行：
+  1. 读取完整的 messages 历史，了解任务进度
+  2. 判断：还有哪些子任务未完成？
+  3. 输出下一个执行者的名字（researcher / analyst / FINISH）
+  4. 由路由函数把执行流导向对应节点
+
+每个专家执行完后，将结果追加到 messages，再回到 Supervisor 重新评估。</div>
+
+    <!-- 3. next 字段 -->
+    <div class="sec-title" id="l6-state">
+      <div class="sec-num">3</div>
+      <h3>next 字段：State 的路由控制器</h3>
+    </div>
+
+    <p>与前几课相比，State 新增了 <code>next</code> 字段，专门用于 Supervisor 的路由决策：</p>
+
+<pre><code><span class="kw">class</span> <span class="cls">State</span>(TypedDict):
+    messages: Annotated[list[BaseMessage], add_messages]  <span class="cm"># 对话历史（内容）</span>
+    next: str   <span class="cm"># Supervisor 的路由决策（控制流）："researcher"|"analyst"|"FINISH"</span></code></pre>
+
+    <div class="kp-grid">
+      <div class="kp"><div class="kp-icon">📌</div><div><strong>messages 存内容，next 存控制流</strong>两个字段职责分离：messages 记录所有专家的工作成果，next 控制下一步执行路径。Supervisor 只写 next，不向 messages 追加内容，避免污染对话历史。</div></div>
+      <div class="kp"><div class="kp-icon">📌</div><div><strong>路由函数直接读 next 字段</strong><code>supervisor_router</code> 只需 <code>return state["next"]</code>，逻辑极简。条件边的映射表把字符串值对应到实际节点名。</div></div>
+    </div>
+
+    <!-- 4. Supervisor 节点 -->
+    <div class="sec-title" id="l6-supervisor">
+      <div class="sec-num">4</div>
+      <h3>Supervisor 节点设计</h3>
+    </div>
+
+<pre><code>MEMBERS = [<span class="str">"researcher"</span>, <span class="str">"analyst"</span>]
+OPTIONS = MEMBERS + [<span class="str">"FINISH"</span>]
+
+SUPERVISOR_PROMPT = <span class="str">"""你是任务协调者，负责把任务分配给合适的专家。
+可用专家：
+- researcher：查询知识、搜索信息
+- analyst   ：数学计算、数据统计
+
+只返回以下选项之一：researcher, analyst, FINISH"""</span>
+
+<span class="kw">def</span> <span class="fn">supervisor_node</span>(state: <span class="cls">State</span>) -> dict:
+    messages = [SystemMessage(content=SUPERVISOR_PROMPT)] + state[<span class="str">"messages"</span>]
+    response = llm.invoke(messages)
+    next_agent = response.content.strip()
+
+    <span class="cm"># 防御性处理：格式不符时默认结束</span>
+    <span class="kw">if</span> next_agent <span class="kw">not in</span> OPTIONS:
+        next_agent = <span class="str">"FINISH"</span>
+
+    <span class="cm"># 只更新 next，不向 messages 追加（避免污染历史）</span>
+    <span class="kw">return</span> {<span class="str">"next"</span>: next_agent}
+
+<span class="kw">def</span> <span class="fn">supervisor_router</span>(state: <span class="cls">State</span>) -> str:
+    <span class="kw">return</span> state[<span class="str">"next"</span>]  <span class="cm"># 直接返回 next 字段的值</span></code></pre>
+
+    <!-- 5. 专家 Agent 设计 -->
+    <div class="sec-title" id="l6-agent">
+      <div class="sec-num">5</div>
+      <h3>专家 Agent 设计</h3>
+    </div>
+
+    <p>每个专家有独立的 LLM（绑定专属工具）+ 专属系统提示，让 LLM 聚焦在自己的领域：</p>
+
+<pre><code><span class="cm"># 每个专家只绑定自己领域的工具</span>
+researcher_llm = llm.bind_tools([search_knowledge, get_latest_info])
+analyst_llm    = llm.bind_tools([calculate, get_statistics])
+
+<span class="kw">def</span> <span class="fn">researcher_node</span>(state: <span class="cls">State</span>) -> dict:
+    messages = [
+        SystemMessage(content=<span class="str">"你是知识研究专家，负责查询和整理信息。"</span>),
+        *state[<span class="str">"messages"</span>],   <span class="cm"># 展开完整历史，让专家了解任务背景</span>
+    ]
+    response = researcher_llm.invoke(messages)
+    <span class="cm"># 如果有工具调用，执行工具后汇总结论</span>
+    <span class="kw">if</span> response.tool_calls:
+        <span class="cm"># ... 执行工具，生成研究结论 ...</span>
+        <span class="kw">return</span> {<span class="str">"messages"</span>: [final_conclusion]}
+    <span class="kw">return</span> {<span class="str">"messages"</span>: [response]}
+
+<span class="cm"># analyst_node 结构类似，只是 llm 和系统提示不同</span></code></pre>
+
+    <!-- 6. 完整构建 -->
+    <div class="sec-title" id="l6-code">
+      <div class="sec-num">6</div>
+      <h3>Graph 构建代码</h3>
+    </div>
+
+<pre><code>graph_builder = <span class="cls">StateGraph</span>(State)
+
+graph_builder.add_node(<span class="str">"supervisor"</span>, supervisor_node)
+graph_builder.add_node(<span class="str">"researcher"</span>, researcher_node)
+graph_builder.add_node(<span class="str">"analyst"</span>,    analyst_node)
+
+<span class="cm"># 入口是 supervisor，先让它分析任务</span>
+graph_builder.set_entry_point(<span class="str">"supervisor"</span>)
+
+<span class="cm"># supervisor 根据 next 字段路由</span>
+graph_builder.add_conditional_edges(
+    <span class="str">"supervisor"</span>,
+    supervisor_router,
+    {
+        <span class="str">"researcher"</span>: <span class="str">"researcher"</span>,
+        <span class="str">"analyst"</span>:    <span class="str">"analyst"</span>,
+        <span class="str">"FINISH"</span>:     END,
+    }
+)
+
+<span class="cm"># 每个专家完成后，汇报给 supervisor</span>
+graph_builder.add_edge(<span class="str">"researcher"</span>, <span class="str">"supervisor"</span>)
+graph_builder.add_edge(<span class="str">"analyst"</span>,    <span class="str">"supervisor"</span>)
+
+graph = graph_builder.compile()</code></pre>
+
+    <!-- 7. 流程图 -->
+    <div class="sec-title" id="l6-flow">
+      <div class="sec-num">7</div>
+      <h3>执行流程图（复合任务示例）</h3>
+    </div>
+
+<div class="flow">问题："计算 (123+456)*2，并对 10,20,30,40,50 做统计分析"
+
+State: { messages: [HumanMessage(...)], next: "" }
+      │
+      ▼
+ [supervisor]  分析：有计算任务 → next = "analyst"
+      │
+      ▼
+ [analyst]     调用 calculate + get_statistics → 追加结论到 messages
+      │
+      ▼
+ [supervisor]  分析：所有任务完成 → next = "FINISH"
+      │
+      ▼
+     END
+
+messages 最终包含：[HumanMessage, AIMessage(analyst的结论)]
+
+───────────────────────────────────────────────────────────
+
+问题："先查大语言模型背景，然后计算 2 的 10 次方"
+
+ [supervisor]  → next = "researcher"
+ [researcher]  调用 search_knowledge("大语言模型") → 输出知识结论
+ [supervisor]  → next = "FINISH"    ← LLM 顺带算了 2^10，认为任务完成
+ END
+
+注意：researcher 自己回答了 2^10=1024（简单计算 LLM 不需要工具）
+Supervisor 判断"所有内容都有了"，直接 FINISH——这是智能行为，不是 bug。</div>
+
+    <!-- 8. 总结 -->
+    <div class="sec-title" id="l6-summary">
+      <div class="sec-num">8</div>
+      <h3>核心知识点总结</h3>
+    </div>
+
+    <div class="kp-grid">
+      <div class="kp"><div class="kp-icon">⭐</div><div><strong>Supervisor 是"决策节点"，不是"执行节点"</strong>它只读取 messages 历史、输出 next 字段，不做任何实际工作。专家节点负责执行，Supervisor 负责调度。</div></div>
+      <div class="kp"><div class="kp-icon">⭐</div><div><strong>next 字段实现路由控制</strong>State 增加 <code>next: str</code> 专门存放路由决策。Supervisor 写入，router 函数读取，条件边映射到实际节点。messages 存内容，next 存控制流，职责清晰。</div></div>
+      <div class="kp"><div class="kp-icon">⭐</div><div><strong>每个专家有独立的 LLM + 工具 + 系统提示</strong>researcher 只绑定查询类工具，analyst 只绑定计算类工具。专属系统提示让 LLM 聚焦角色，效果比"全能 Agent"更好。</div></div>
+      <div class="kp"><div class="kp-icon">⭐</div><div><strong>Supervisor 模式 vs 单 Agent ReAct</strong>ReAct：agent → tools → agent（LLM 自己决定调哪个工具）；Supervisor：supervisor → specialistA/B → supervisor（专门的调度 LLM 决定交给哪个专家）。复杂任务用 Supervisor，简单任务用 ReAct。</div></div>
+      <div class="kp"><div class="kp-icon">⭐</div><div><strong>Supervisor 的智能路由</strong>LLM 不需要专门委托就能做的事（如简单计算），执行的专家会顺带处理，Supervisor 识别后直接 FINISH。这是正常的智能行为，让系统更高效。</div></div>
+    </div>
+
+    <h4>API 速查表</h4>
+    <div class="table-wrap">
+      <table class="api-table">
+        <thead><tr><th>概念</th><th>实现方式</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td>Supervisor 节点</td><td>普通函数，只更新 <code>next</code> 字段</td><td>不向 messages 追加内容</td></tr>
+          <tr><td>路由函数</td><td><code>return state["next"]</code></td><td>直接读 next 字段</td></tr>
+          <tr><td>专家 Agent</td><td><code>llm.bind_tools(专属工具列表)</code></td><td>每个专家独立绑定工具</td></tr>
+          <tr><td>循环结构</td><td><code>add_edge("researcher", "supervisor")</code></td><td>专家完成后回到 Supervisor</td></tr>
+          <tr><td>终止条件</td><td>Supervisor 返回 <code>"FINISH"</code></td><td>映射到 <code>END</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div><!-- /lesson-content -->
+</section><!-- /lesson6 -->
+
+</main>
+
+<!-- 回到顶部 -->
+<a id="back-top" href="#lesson1" title="回到顶部">↑</a>
+
+<script>
+// ── 手风琴折叠 + 跳转 ─────────────────────────────────────
+function openLesson(lesson) {
+  // 关闭所有
+  document.querySelectorAll('.nav-lesson').forEach(l => l.classList.remove('open'));
+  // 打开目标
+  lesson.classList.add('open');
+  // 侧边栏滚动，让该课程标题可见
+  const header = lesson.querySelector('.nav-lesson-header');
+  header.scrollIntoView({ block: 'nearest' });
+}
+
+document.querySelectorAll('.nav-lesson-header').forEach(header => {
+  header.addEventListener('click', function (e) {
+    e.preventDefault();
+    const lesson = this.closest('.nav-lesson');
+    const wasOpen = lesson.classList.contains('open');
+
+    if (wasOpen) {
+      // 已展开时再次点击：只跳转，不收起
+    } else {
+      openLesson(lesson);
+    }
+
+    // 跳转到对应 section
+    const target = document.querySelector(this.getAttribute('href'));
+    if (target) target.scrollIntoView({ behavior: 'smooth' });
+  });
+});
+
+// ── 滚动时自动高亮 + 展开对应课程 ─────────────────────────
+const sections = document.querySelectorAll('section[id]');
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      // 更新 active 样式
+      document.querySelectorAll('.nav-lesson-header').forEach(l => l.classList.remove('active'));
+      const activeHeader = document.querySelector(`.nav-lesson-header[href="#${entry.target.id}"]`);
+      if (activeHeader) {
+        activeHeader.classList.add('active');
+        // 自动展开对应课程
+        openLesson(activeHeader.closest('.nav-lesson'));
+      }
+    }
+  });
+}, { threshold: 0.15 });
+sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>
