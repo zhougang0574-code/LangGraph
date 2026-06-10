@@ -1,28 +1,23 @@
 """
-第一课：LangGraph 核心概念
-============================
-学习要点：
-  1. State  —— 整个 Graph 的"共享内存"，用 TypedDict 定义
-  2. Node   —— 普通 Python 函数，接收 State、返回更新字典
-  3. Edge   —— 节点之间的有向连接，决定执行顺序
-  4. Graph  —— 把 State/Node/Edge 组装起来，compile 后运行
+第一课：Hello Graph —— 最小可运行的 LangGraph
+==============================================
+只有 4 个概念，先跑起来再说：
 
-对比 LangChain：
-  LangChain Chain  = 固定的线性管道（A→B→C）
-  LangGraph Graph  = 灵活的有向图，支持分支/循环/并行
+  State  —— 共享数据包（TypedDict）
+  Node   —— 普通函数，读 State、返回更新字段
+  Edge   —— 节点之间的有向连线
+  Graph  —— 把以上三者组装起来，compile 后 invoke 运行
 """
 
 import os
 from typing import TypedDict
 
 from dotenv import load_dotenv
-from langchain_core.messages import HumanMessage
 from langchain_openai import ChatOpenAI
-from langgraph.graph import StateGraph, END
+from langgraph.graph import StateGraph, START, END
 
 load_dotenv()
 
-# ── LLM 初始化（百炼 qwen-plus）────────────────────────────────────────────
 llm = ChatOpenAI(
     api_key=os.getenv("API_KEY"),
     base_url=os.getenv("BASE_URL"),
@@ -30,108 +25,66 @@ llm = ChatOpenAI(
 )
 
 
-# ── 1. 定义 State ─────────────────────────────────────────────────────────
-# State 是贯穿整个 Graph 的"共享变量包"
-# 每个节点都能读取它、并返回需要更新的字段
+# ── 1. State：整个 Graph 的唯一数据载体 ────────────────────────────────────
 class State(TypedDict):
-    question: str       # 用户输入的问题
-    answer: str         # LLM 的回答
-    word_count: int     # 回答的字数统计
+    question: str
+    answer: str
 
 
-# ── 2. 定义 Node（节点） ────────────────────────────────────────────────────
-# 节点 = 普通函数，签名固定：接收 State，返回 dict（只需包含要更新的字段）
-
+# ── 2. Node：普通函数，接收 State，返回要更新的字段 ─────────────────────────
 def llm_node(state: State) -> dict:
-    """节点1：调用 LLM 回答问题"""
-    print(f"[llm_node] 收到问题：{state['question']}")
-    response = llm.invoke([HumanMessage(content=state["question"])])
-    return {"answer": response.content}
+    response = llm.invoke(state["question"])
+    return {"answer": response.content}   # 只返回要改的字段，其余保持不变
 
 
-def count_node(state: State) -> dict:
-    """节点2：统计回答字数"""
-    count = len(state["answer"])
-    print(f"[count_node] 回答字数：{count}")
-    return {"word_count": count}
-
-
-def print_node(state: State) -> dict:
-    """节点3：打印最终结果"""
-    print("\n" + "=" * 50)
-    print(f"问题：{state['question']}")
-    print(f"回答：{state['answer']}")
-    print(f"字数：{state['word_count']}")
-    print("=" * 50)
-    return {}  # 不更新任何字段，返回空字典即可
+def answer_node(state: State) -> dict:
+    print(f"回答字数：{len(state['answer'])}")
+    return {}   # 不更新任何字段，返回空字典
 
 
 # ── 3. 构建 Graph ──────────────────────────────────────────────────────────
-# StateGraph(State) 告诉 LangGraph 用哪个 TypedDict 作为状态类型
-graph_builder = StateGraph(State)
+builder = StateGraph(State)
 
-# add_node("节点名称", 节点函数)
-graph_builder.add_node("llm", llm_node)
-graph_builder.add_node("count", count_node)
-graph_builder.add_node("print", print_node)
+builder.add_node("llm_node", llm_node)
+builder.add_node("answer_node", answer_node)
 
-# add_edge("从", "到") —— 固定连线，无条件跳转
-graph_builder.add_edge("llm", "count")
-graph_builder.add_edge("count", "print")
-graph_builder.add_edge("print", END)   # END 是内置终止符
+# ── 4. Edge：决定执行顺序 ──────────────────────────────────────────────────
+builder.add_edge(START, "llm_node")
+builder.add_edge("llm_node", "answer_node")
+builder.add_edge("answer_node", END)
 
-# 设置入口节点
-graph_builder.set_entry_point("llm")
-
-# compile() 把所有配置锁定，生成可执行的 graph 对象
-graph = graph_builder.compile()
+graph = builder.compile()
 
 
-# ── 4. 运行 Graph ──────────────────────────────────────────────────────────
+# ── 5. 运行 ───────────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    # invoke 的参数就是初始 State（可以只填部分字段）
-    result = graph.invoke({
-        "question": "用一句话解释什么是人工智能",
-        "answer": "",
-        "word_count": 0,
-    })
-
-    print("\n[最终 State]", result)
+    result = graph.invoke({"question": "用一句话介绍 LangGraph"})
+    print("问题：", result["question"])
+    print("回答：", result["answer"])
 
 
-# ── 运行结果说明 ────────────────────────────────────────────────────────────
+# ── 执行流程 ───────────────────────────────────────────────────────────────
 """
-执行流程（数据流向图）：
+初始 State: {question: "用一句话介绍 LangGraph", answer: ""}
+      │
+      ▼ START → llm_node
+ [llm_node]     调用 LLM，把回答写入 answer 字段
+      │
+      ▼ llm_node → answer_node
+ [answer_node]  打印字数，返回 {}（不改任何字段）
+      │
+      ▼ answer_node → END
+     END
 
-    初始 State: {question: "...", answer: "", word_count: 0}
-         │
-         ▼
-    [llm_node]    → 调用 qwen-plus，把回答写入 answer 字段
-         │
-         ▼
-    [count_node]  → 读取 answer，统计字数写入 word_count 字段
-         │
-         ▼
-    [print_node]  → 读取所有字段打印结果，返回 {} 不修改任何字段
-         │
-         ▼
-        END
+invoke() 返回最终 State，包含所有字段的最新值。
 
-最终 State 包含所有字段的最新值，invoke() 会把它作为返回值。
+★ 3 个最重要的细节：
 
-★ 3 个核心知识点：
+1. 节点只需返回"改了什么"，不需要复制整个 State
+   return {"answer": "xxx"}  ← 只更新 answer，question 保持不变
 
-1. State 是唯一的数据载体
-   - 节点之间不直接传参，全靠读写同一个 State 字典
-   - 类比：State 就像 LangChain 里的 memory，但更显式、更可控
+2. add_edge(START, "llm_node") 设置入口节点
+   LangGraph 没有 set_entry_point 也可以，START 就是入口标记
 
-2. 节点只返回要更新的字段
-   - 返回 {"answer": "xxx"} 只更新 answer，其他字段保持不变
-   - 不需要把整个 State 复制一遍再返回
-   - 返回 {} 代表"我不修改任何东西"
-
-3. END 是内置终止符
-   - from langgraph.graph import END
-   - 任何节点的边指向 END，Graph 就在那里停止
-   - 一个 Graph 可以有多个节点都指向 END（多出口）
+3. compile() 必须调用，之后才能 invoke()
 """
