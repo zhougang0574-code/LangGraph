@@ -556,6 +556,76 @@ tr:hover td { background: var(--primary-light); transition: background .12s; }
       </div>
     </div>
 
+    <!-- 第九课 -->
+    <div class="nav-lesson">
+      <a class="nav-lesson-header" href="#lesson9">
+        <div class="nav-lesson-num">9</div>
+        对话记忆：MemorySaver
+        <span class="nav-arrow">▶</span>
+      </a>
+      <div class="nav-sub">
+        <a href="#l9-what">为什么需要记忆</a>
+        <a href="#l9-memorysaver">MemorySaver</a>
+        <a href="#l9-thread">thread_id</a>
+        <a href="#l9-code">完整代码</a>
+        <a href="#l9-flow">执行流程图</a>
+        <a href="#l9-summary">知识点总结</a>
+        <a href="#l9-pitfalls">踩坑记录</a>
+      </div>
+    </div>
+
+    <!-- 第十课 -->
+    <div class="nav-lesson">
+      <a class="nav-lesson-header" href="#lesson10">
+        <div class="nav-lesson-num">10</div>
+        流式输出：graph.stream()
+        <span class="nav-arrow">▶</span>
+      </a>
+      <div class="nav-sub">
+        <a href="#l10-why">invoke vs stream</a>
+        <a href="#l10-updates">stream_mode updates</a>
+        <a href="#l10-values">stream_mode values</a>
+        <a href="#l10-code">完整代码</a>
+        <a href="#l10-summary">知识点总结</a>
+        <a href="#l10-pitfalls">踩坑记录</a>
+      </div>
+    </div>
+
+    <!-- 第十一课 -->
+    <div class="nav-lesson">
+      <a class="nav-lesson-header" href="#lesson11">
+        <div class="nav-lesson-num">11</div>
+        Human-in-the-loop：interrupt()
+        <span class="nav-arrow">▶</span>
+      </a>
+      <div class="nav-sub">
+        <a href="#l11-what">为什么需要人类介入</a>
+        <a href="#l11-interrupt">interrupt()</a>
+        <a href="#l11-command">Command(resume=...)</a>
+        <a href="#l11-flow">执行流程图</a>
+        <a href="#l11-code">完整代码</a>
+        <a href="#l11-summary">知识点总结</a>
+        <a href="#l11-pitfalls">踩坑记录</a>
+      </div>
+    </div>
+
+    <!-- 第十二课 -->
+    <div class="nav-lesson">
+      <a class="nav-lesson-header" href="#lesson12">
+        <div class="nav-lesson-num">12</div>
+        外部访问 State：get/update
+        <span class="nav-arrow">▶</span>
+      </a>
+      <div class="nav-sub">
+        <a href="#l12-what">为什么需要外部访问</a>
+        <a href="#l12-get">get_state()</a>
+        <a href="#l12-update">update_state()</a>
+        <a href="#l12-code">完整代码</a>
+        <a href="#l12-summary">知识点总结</a>
+        <a href="#l12-pitfalls">踩坑记录</a>
+      </div>
+    </div>
+
   </div>
 </nav>
 
@@ -2851,6 +2921,687 @@ END</pre>
       <div class="pitfall-title">坑 3：State 必须用 add_messages reducer</div>
       <p>ToolNode 执行后会追加 ToolMessage，这依赖 <code>Annotated[list[BaseMessage], add_messages]</code>。<br>
       如果 messages 字段是普通 list（覆盖语义），ToolMessage 会覆盖掉历史消息，LLM 丢失上下文。</p>
+    </div>
+  </div>
+
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ 第九课 -->
+<section id="lesson9">
+  <div class="lesson-header">
+    <div class="lesson-num">9</div>
+    <div>
+      <div class="lesson-title">对话记忆：MemorySaver</div>
+      <div class="lesson-subtitle">让两次 invoke() 之间保留上下文</div>
+    </div>
+  </div>
+
+  <div class="card" id="l9-what">
+    <div class="card-title">为什么需要记忆</div>
+    <p>前八课的所有 <code>invoke()</code> 都是<strong>无状态的</strong>——每次调用都从空 State 开始，上一次的内容完全消失：</p>
+    <pre><code><span class="co"># 第一次</span>
+graph.invoke({"messages": [HumanMessage(<span class="str">"我叫小明"</span>)]})
+<span class="co"># LLM："你好小明！"</span>
+
+<span class="co"># 第二次（State 清空了）</span>
+graph.invoke({"messages": [HumanMessage(<span class="str">"我叫什么名字？"</span>)]})
+<span class="co"># LLM："抱歉，我不知道你的名字。"  ← 完全忘了</span></code></pre>
+    <p>真实的聊天机器人需要记住对话历史。<code>MemorySaver</code> 解决这个问题：它在两次 <code>invoke()</code> 之间把 State 持久化，下次恢复。</p>
+  </div>
+
+  <div class="card" id="l9-memorysaver">
+    <div class="card-title">新概念：MemorySaver</div>
+    <p><code>MemorySaver</code> 是一个 <strong>checkpointer（检查点存储器）</strong>，传给 <code>compile()</code>：</p>
+    <pre><code><span class="kw">from</span> langgraph.checkpoint.memory <span class="kw">import</span> MemorySaver
+
+memory = MemorySaver()
+graph = builder.compile(checkpointer=memory)</code></pre>
+    <p>加了 <code>checkpointer</code> 之后，每次 <code>invoke()</code> 结束时 LangGraph 会自动把当前 State 保存；下次同一个对话线程进来，先把 State 恢复出来，再追加新消息。</p>
+    <div class="tip">
+      Graph 的节点代码<strong>不需要任何改动</strong>——MemorySaver 完全在 Graph 外部工作，对节点透明。
+    </div>
+  </div>
+
+  <div class="card" id="l9-thread">
+    <div class="card-title">thread_id：区分不同对话</div>
+    <p>加了 checkpointer 之后，<code>invoke()</code> 必须带上 <code>config</code> 参数指定是哪个对话线程：</p>
+    <pre><code>config = {<span class="str">"configurable"</span>: {<span class="str">"thread_id"</span>: <span class="str">"对话A"</span>}}
+graph.invoke(input, config=config)</code></pre>
+    <table style="width:100%;border-collapse:collapse;margin-top:12px">
+      <tr style="background:#1e2a3a">
+        <th style="padding:8px 12px;text-align:left;border:1px solid #2d3f52">情况</th>
+        <th style="padding:8px 12px;text-align:left;border:1px solid #2d3f52">结果</th>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">两次 invoke() 用<strong>相同</strong> thread_id</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">State 叠加，LLM 看到完整历史</td>
+      </tr>
+      <tr style="background:#131d2a">
+        <td style="padding:8px 12px;border:1px solid #2d3f52">两次 invoke() 用<strong>不同</strong> thread_id</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">独立的对话，互不干扰</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">不传 config（或没有 checkpointer）</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">每次从空 State 开始，无记忆</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card" id="l9-code">
+    <div class="card-title">完整代码（09_memory.py）</div>
+    <pre><code><span class="kw">from</span> langgraph.checkpoint.memory <span class="kw">import</span> MemorySaver
+<span class="kw">from</span> langgraph.graph <span class="kw">import</span> StateGraph, START, END
+<span class="kw">from</span> langgraph.graph.message <span class="kw">import</span> add_messages
+
+<span class="co"># State、节点、Graph 结构和第六课完全相同</span>
+<span class="kw">class</span> State(TypedDict):
+    messages: Annotated[list[BaseMessage], add_messages]
+
+<span class="kw">def</span> <span class="fn">llm_node</span>(state: State) -> dict:
+    response = llm.invoke(state[<span class="str">"messages"</span>])
+    <span class="kw">return</span> {<span class="str">"messages"</span>: [response]}
+
+builder = StateGraph(State)
+builder.add_node(<span class="str">"llm_node"</span>, llm_node)
+builder.add_edge(START, <span class="str">"llm_node"</span>)
+builder.add_edge(<span class="str">"llm_node"</span>, END)
+
+<span class="co"># ★ 唯一变化：compile() 传入 checkpointer</span>
+memory = MemorySaver()
+graph = builder.compile(checkpointer=memory)
+
+<span class="co"># 每次 invoke() 带上 config</span>
+config_a = {<span class="str">"configurable"</span>: {<span class="str">"thread_id"</span>: <span class="str">"对话A"</span>}}
+
+<span class="co"># 第1轮</span>
+graph.invoke(
+    {<span class="str">"messages"</span>: [HumanMessage(content=<span class="str">"你好，我叫小明"</span>)]},
+    config=config_a,
+)
+
+<span class="co"># 第2轮（同一 thread_id → LLM 记得小明）</span>
+result = graph.invoke(
+    {<span class="str">"messages"</span>: [HumanMessage(content=<span class="str">"你还记得我叫什么名字吗？"</span>)]},
+    config=config_a,
+)
+print(result[<span class="str">"messages"</span>][-1].content)
+<span class="co"># → "你叫小明！"</span>
+
+<span class="co"># 第3轮（不同 thread_id → 全新对话）</span>
+config_b = {<span class="str">"configurable"</span>: {<span class="str">"thread_id"</span>: <span class="str">"对话B"</span>}}
+result = graph.invoke(
+    {<span class="str">"messages"</span>: [HumanMessage(content=<span class="str">"你还记得我叫什么名字吗？"</span>)]},
+    config=config_b,
+)
+print(result[<span class="str">"messages"</span>][-1].content)
+<span class="co"># → "抱歉，你还没有告诉我你的名字。"</span></code></pre>
+  </div>
+
+  <div class="card" id="l9-flow">
+    <div class="card-title">执行流程图</div>
+    <pre style="line-height:1.9;font-size:15px">第1轮 invoke(thread_id="对话A")
+  State 初始：messages = []
+  追加：HumanMessage("你好，我叫小明")
+  llm_node 运行，LLM 回复
+  追加：AIMessage("你好小明！")
+  MemorySaver 存储：对话A → messages 有2条
+
+第2轮 invoke(thread_id="对话A")
+  MemorySaver 恢复：messages = [Human("你好，我叫小明"), AI("你好小明！")]
+  追加：HumanMessage("你还记得我叫什么名字吗？")
+  llm_node 运行，LLM 看到完整历史，知道叫小明
+  追加：AIMessage("你叫小明！")
+  MemorySaver 存储：对话A → messages 有4条
+
+第3轮 invoke(thread_id="对话B")
+  MemorySaver 没有"对话B"的记录，State 从空开始
+  追加：HumanMessage("你还记得我叫什么名字吗？")
+  LLM 不知道名字</pre>
+  </div>
+
+  <div class="card" id="l9-summary">
+    <div class="card-title">知识点总结</div>
+    <table style="width:100%;border-collapse:collapse">
+      <tr style="background:#1e2a3a">
+        <th style="padding:8px 12px;text-align:left;border:1px solid #2d3f52">概念</th>
+        <th style="padding:8px 12px;text-align:left;border:1px solid #2d3f52">说明</th>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>MemorySaver()</code></td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">内存 checkpointer，存在 Python 进程内，程序重启后丢失</td>
+      </tr>
+      <tr style="background:#131d2a">
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>compile(checkpointer=...)</code></td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">启用持久化，每次 invoke() 后自动保存 State</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>config={"configurable": {"thread_id": ...}}</code></td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">指定对话线程，相同 id 共享历史，不同 id 互相隔离</td>
+      </tr>
+    </table>
+    <div class="tip" style="margin-top:16px">
+      <strong>节点代码完全不用改：</strong> MemorySaver 在 Graph 执行框架层工作，
+      llm_node 看到的 state["messages"] 已经包含了之前轮次的历史，无感知。
+    </div>
+  </div>
+
+  <div class="card" id="l9-pitfalls">
+    <div class="card-title">踩坑记录</div>
+    <div class="pitfall">
+      <div class="pitfall-title">坑 1：加了 checkpointer 但忘传 config</div>
+      <p>compile 时传了 <code>checkpointer=memory</code>，但 invoke 时没传 <code>config</code>，LangGraph 会报错：<br>
+      <code>ValueError: checkpointer requires configurable "thread_id"</code><br>
+      每次 invoke() 都必须带 <code>config={"configurable": {"thread_id": "..."}}</code>。</p>
+    </div>
+    <div class="pitfall">
+      <div class="pitfall-title">坑 2：MemorySaver 重启后丢失</div>
+      <p>MemorySaver 把数据存在 Python 对象里，程序重启后全部消失。<br>
+      需要持久化可换成 <code>SqliteSaver</code>（存文件）或 <code>PostgresSaver</code>（存数据库），用法相同，只是初始化方式不同。</p>
+    </div>
+    <div class="pitfall">
+      <div class="pitfall-title">坑 3：消息列表会越来越长</div>
+      <p>每轮对话追加 2 条消息（Human + AI），对话越长 messages 越大，LLM 的 token 消耗越多。<br>
+      生产环境通常需要截断历史（只保留最近 N 条），这是更高级的话题。</p>
+    </div>
+  </div>
+
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ 第十课 -->
+<section id="lesson10">
+  <div class="lesson-header">
+    <div class="lesson-num">10</div>
+    <div>
+      <div class="lesson-title">流式输出：graph.stream()</div>
+      <div class="lesson-subtitle">节点完成就拿到结果，不等 Graph 全部跑完</div>
+    </div>
+  </div>
+
+  <div class="card" id="l10-why">
+    <div class="card-title">invoke() vs stream()</div>
+    <p>前九课都用 <code>invoke()</code>：等 Graph 里所有节点都跑完，才一次性返回最终 State。</p>
+    <p><code>stream()</code> 改变了这个行为：<strong>每个节点执行完就立刻 yield 一次</strong>，调用方可以边等边处理。</p>
+    <table style="width:100%;border-collapse:collapse;margin-top:12px">
+      <tr style="background:#1e2a3a">
+        <th style="padding:8px 12px;text-align:left;border:1px solid #2d3f52">方法</th>
+        <th style="padding:8px 12px;text-align:left;border:1px solid #2d3f52">返回值</th>
+        <th style="padding:8px 12px;text-align:left;border:1px solid #2d3f52">何时返回</th>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>invoke()</code></td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">最终 State（dict）</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">整个 Graph 跑完后</td>
+      </tr>
+      <tr style="background:#131d2a">
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>stream()</code></td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">迭代器，每次 yield 一个 chunk</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">每个节点完成后 yield 一次</td>
+      </tr>
+    </table>
+    <div class="tip">
+      Graph 的节点、State、compile() 完全不用改——<code>stream()</code> 只是换了一种调用方式。
+    </div>
+  </div>
+
+  <div class="card" id="l10-updates">
+    <div class="card-title">stream_mode="updates"：拿到每个节点的输出 delta</div>
+    <p>每个 chunk 是一个 dict：<code>{节点名: 该节点 return 的内容}</code></p>
+    <pre><code><span class="kw">for</span> chunk <span class="kw">in</span> graph.stream(input, stream_mode=<span class="str">"updates"</span>):
+    node_name   = list(chunk.keys())[0]   <span class="co"># 是哪个节点</span>
+    node_output = chunk[node_name]         <span class="co"># 该节点返回的 dict</span>
+    print(node_name, node_output)</code></pre>
+    <p>对于本课的两节点 Graph（llm_node → print_node），输出是：</p>
+    <pre style="background:#0d1117;padding:14px;border-radius:6px;font-size:14px"><code>llm_node    {"messages": [AIMessage("Python 是...")]}
+print_node  {}    ← print_node 返回空 dict</code></pre>
+  </div>
+
+  <div class="card" id="l10-values">
+    <div class="card-title">stream_mode="values"：每步后的完整 State 快照</div>
+    <p>每个 chunk 是当前完整的 State，包含所有字段的最新值。</p>
+    <pre><code><span class="kw">for</span> i, snapshot <span class="kw">in</span> enumerate(graph.stream(input, stream_mode=<span class="str">"values"</span>)):
+    print(i, len(snapshot[<span class="str">"messages"</span>]), <span class="str">"条消息"</span>)</code></pre>
+    <pre style="background:#0d1117;padding:14px;border-radius:6px;font-size:14px"><code>0  1条消息   ← 初始输入（只有 HumanMessage）
+1  2条消息   ← llm_node 完成后（追加了 AIMessage）
+2  2条消息   ← print_node 完成后（没改 State，条数不变）</code></pre>
+    <table style="width:100%;border-collapse:collapse;margin-top:16px">
+      <tr style="background:#1e2a3a">
+        <th style="padding:8px 12px;text-align:left;border:1px solid #2d3f52">stream_mode</th>
+        <th style="padding:8px 12px;text-align:left;border:1px solid #2d3f52">chunk 内容</th>
+        <th style="padding:8px 12px;text-align:left;border:1px solid #2d3f52">适合场景</th>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>"updates"</code></td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">只有本节点改动的字段</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">调试、监控每个节点做了什么</td>
+      </tr>
+      <tr style="background:#131d2a">
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>"values"</code></td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">完整 State 快照</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">前端需要展示当前完整状态</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card" id="l10-code">
+    <div class="card-title">完整代码（10_streaming.py）</div>
+    <pre><code><span class="co"># State、节点、Graph 和第六课完全一样，只有调用方式变了</span>
+input_state = {<span class="str">"messages"</span>: [HumanMessage(content=<span class="str">"用3句话介绍Python"</span>)]}
+
+<span class="co"># invoke()：一次性返回</span>
+result = graph.invoke(input_state)
+print(result[<span class="str">"messages"</span>][-1].content)
+
+<span class="co"># stream() updates：每节点完成 yield 一次</span>
+<span class="kw">for</span> chunk <span class="kw">in</span> graph.stream(input_state, stream_mode=<span class="str">"updates"</span>):
+    node_name = list(chunk.keys())[0]
+    print(<span class="str">f"节点 [{node_name}] 完成：{chunk[node_name]}"</span>)
+
+<span class="co"># stream() values：每步后完整 State</span>
+<span class="kw">for</span> i, snapshot <span class="kw">in</span> enumerate(graph.stream(input_state, stream_mode=<span class="str">"values"</span>)):
+    print(<span class="str">f"快照 {i}：messages 共 {len(snapshot['messages'])} 条"</span>)</code></pre>
+  </div>
+
+  <div class="card" id="l10-summary">
+    <div class="card-title">知识点总结</div>
+    <table style="width:100%;border-collapse:collapse">
+      <tr style="background:#1e2a3a">
+        <th style="padding:8px 12px;text-align:left;border:1px solid #2d3f52">概念</th>
+        <th style="padding:8px 12px;text-align:left;border:1px solid #2d3f52">说明</th>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>graph.stream(input)</code></td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">返回迭代器，每个节点完成后 yield 一个 chunk</td>
+      </tr>
+      <tr style="background:#131d2a">
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>stream_mode="updates"</code></td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">chunk = {节点名: 该节点返回的 dict}，只有变化的字段</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>stream_mode="values"</code></td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">chunk = 完整 State 快照</td>
+      </tr>
+    </table>
+    <div class="tip" style="margin-top:16px">
+      <strong>stream() 在 ReAct Agent 里特别有用：</strong><br>
+      第八课的循环可能转好几轮，用 stream() 可以实时看到每一轮 agent 在想什么、tools 执行了哪个工具，而不是等最终答案出来才知道发生了什么。
+    </div>
+  </div>
+
+  <div class="card" id="l10-pitfalls">
+    <div class="card-title">踩坑记录</div>
+    <div class="pitfall">
+      <div class="pitfall-title">坑 1：stream() 返回的是迭代器，不是 dict</div>
+      <p><code>graph.stream(...)</code> 返回一个生成器，必须用 <code>for chunk in ...</code> 来消费，不能直接取 <code>["messages"]</code>。<br>
+      如果只需要最后一个 chunk，可以用 <code>*_, last = graph.stream(...)</code> 或 <code>list(graph.stream(...))</code>。</p>
+    </div>
+    <div class="pitfall">
+      <div class="pitfall-title">坑 2：加了 checkpointer 同样需要传 config</div>
+      <p>第九课加了 <code>MemorySaver</code> 后，<code>stream()</code> 和 <code>invoke()</code> 一样需要带 <code>config</code>。<br>
+      <code>graph.stream(input, config=config, stream_mode="updates")</code></p>
+    </div>
+  </div>
+
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ 第十一课 -->
+<section id="lesson11">
+  <div class="lesson-header">
+    <div class="lesson-num">11</div>
+    <div>
+      <div class="lesson-title">Human-in-the-loop：interrupt()</div>
+      <div class="lesson-subtitle">在节点内部暂停 Graph，等人类决定后再继续</div>
+    </div>
+  </div>
+
+  <div class="card" id="l11-what">
+    <div class="card-title">为什么需要人类介入</div>
+    <p>前十课的 Graph 一旦启动就自动跑完，没有地方可以让人类审查中间结果。<br>
+    实际场景中经常需要：</p>
+    <ul style="line-height:2.2">
+      <li>LLM 生成了一个操作方案 → <strong>人类确认后再执行</strong></li>
+      <li>Agent 准备调用一个危险工具 → <strong>人类批准才能调用</strong></li>
+      <li>需要人类补充信息 → <strong>等待用户输入后继续</strong></li>
+    </ul>
+    <p>LangGraph 的解决方案是 <code>interrupt()</code>：在节点内部调用，Graph 立刻暂停，把值传出去，等 <code>Command(resume=...)</code> 进来后从断点继续。</p>
+  </div>
+
+  <div class="card" id="l11-interrupt">
+    <div class="card-title">新概念 1：interrupt()</div>
+    <p>在任意节点函数内部调用 <code>interrupt(value)</code>，Graph 立刻暂停：</p>
+    <pre><code><span class="kw">from</span> langgraph.types <span class="kw">import</span> interrupt
+
+<span class="kw">def</span> <span class="fn">review_node</span>(state: State) -> dict:
+    print(state[<span class="str">"plan"</span>])  <span class="co"># 先做完该做的事</span>
+
+    <span class="co"># ★ 在这里暂停，把提示信息传给调用方</span>
+    decision = interrupt(<span class="str">"请输入 yes 批准，其他取消："</span>)
+
+    <span class="co"># Graph 恢复后，decision 拿到的是 Command(resume=...) 传入的值</span>
+    approved = decision.strip().lower() == <span class="str">"yes"</span>
+    <span class="kw">return</span> {<span class="str">"approved"</span>: approved}</code></pre>
+    <div class="tip">
+      <code>interrupt()</code> 传入的参数（这里是字符串 <code>"请输入..."</code>）会出现在 Graph 暂停时的返回值里，用来告诉调用方"我暂停在哪里、需要什么信息"。
+    </div>
+  </div>
+
+  <div class="card" id="l11-command">
+    <div class="card-title">新概念 2：Command(resume=...)</div>
+    <p>人类做出决定后，把 <code>Command(resume=值)</code> 作为输入传给 <code>invoke()</code>，Graph 从断点继续：</p>
+    <pre><code><span class="kw">from</span> langgraph.types <span class="kw">import</span> Command
+
+config = {<span class="str">"configurable"</span>: {<span class="str">"thread_id"</span>: <span class="str">"review-1"</span>}}
+
+<span class="co"># 第1次：跑到 interrupt() 暂停</span>
+result = graph.invoke({<span class="str">"question"</span>: <span class="str">"如何读取 CSV？"</span>}, config=config)
+<span class="co"># result 包含暂停信息，Graph 没有到达 END</span>
+
+<span class="co"># 人类输入决定后...</span>
+human_input = <span class="str">"yes"</span>
+
+<span class="co"># 第2次：传入 Command 恢复，resume 的值会成为 interrupt() 的返回值</span>
+result = graph.invoke(Command(resume=human_input), config=config)</code></pre>
+    <div class="tip">
+      注意：第2次 <code>invoke()</code> 的第一个参数不再是 State dict，而是 <code>Command(resume=...)</code>。<br>
+      必须用相同的 <code>thread_id</code>，这样 checkpointer 才能找到之前暂停的位置。
+    </div>
+  </div>
+
+  <div class="card" id="l11-flow">
+    <div class="card-title">执行流程图</div>
+    <pre style="line-height:1.9;font-size:15px">第1次 invoke({"question": "..."}, config)
+  │
+  ▼
+plan_node
+  LLM 生成方案，存入 state["plan"]
+  │
+  ▼
+review_node
+  打印方案
+  调用 interrupt("请输入 yes 批准...")
+  ┌─────────────────────────────┐
+  │  Graph 暂停                  │
+  │  State 保存到 checkpoint     │
+  │  invoke() 返回               │
+  └─────────────────────────────┘
+
+       人类查看方案，输入决定
+
+第2次 invoke(Command(resume="yes"), config)
+  │
+  ▼  从 checkpoint 恢复，回到 review_node 的 interrupt() 处
+  interrupt() 返回 "yes"
+  approved = True
+  review_node 返回 {"approved": True}
+  │
+  ▼
+execute_node
+  state["approved"] 为 True → 执行方案
+  │
+  ▼
+END</pre>
+  </div>
+
+  <div class="card" id="l11-code">
+    <div class="card-title">完整代码（11_interrupt.py）</div>
+    <pre><code><span class="kw">from</span> langgraph.types <span class="kw">import</span> Command, interrupt
+<span class="kw">from</span> langgraph.checkpoint.memory <span class="kw">import</span> MemorySaver
+
+<span class="kw">class</span> State(TypedDict):
+    question: str
+    plan: str
+    approved: bool
+
+<span class="kw">def</span> <span class="fn">plan_node</span>(state: State) -> dict:
+    response = llm.invoke([...])
+    <span class="kw">return</span> {<span class="str">"plan"</span>: response.content}
+
+<span class="kw">def</span> <span class="fn">review_node</span>(state: State) -> dict:
+    print(state[<span class="str">"plan"</span>])
+    decision = interrupt(<span class="str">"请输入 yes 批准，其他取消："</span>)
+    <span class="kw">return</span> {<span class="str">"approved"</span>: decision.strip().lower() == <span class="str">"yes"</span>}
+
+<span class="kw">def</span> <span class="fn">execute_node</span>(state: State) -> dict:
+    <span class="kw">if</span> state[<span class="str">"approved"</span>]:
+        print(<span class="str">"✓ 方案已批准，开始执行..."</span>)
+    <span class="kw">else</span>:
+        print(<span class="str">"✗ 方案被拒绝。"</span>)
+    <span class="kw">return</span> {}
+
+<span class="co"># Graph：线性结构，和第三课一样</span>
+builder = StateGraph(State)
+builder.add_node(<span class="str">"plan_node"</span>,    plan_node)
+builder.add_node(<span class="str">"review_node"</span>,  review_node)
+builder.add_node(<span class="str">"execute_node"</span>, execute_node)
+builder.add_edge(START, <span class="str">"plan_node"</span>)
+builder.add_edge(<span class="str">"plan_node"</span>,    <span class="str">"review_node"</span>)
+builder.add_edge(<span class="str">"review_node"</span>,  <span class="str">"execute_node"</span>)
+builder.add_edge(<span class="str">"execute_node"</span>, END)
+
+graph = builder.compile(checkpointer=MemorySaver())
+
+config = {<span class="str">"configurable"</span>: {<span class="str">"thread_id"</span>: <span class="str">"review-1"</span>}}
+
+<span class="co"># 第1次：跑到 interrupt() 暂停</span>
+graph.invoke({<span class="str">"question"</span>: <span class="str">"如何用 Python 读取 CSV？"</span>}, config=config)
+
+<span class="co"># 人类输入</span>
+human_input = input(<span class="str">"请输入你的决定："</span>)
+
+<span class="co"># 第2次：传入 Command 恢复</span>
+graph.invoke(Command(resume=human_input), config=config)</code></pre>
+  </div>
+
+  <div class="card" id="l11-summary">
+    <div class="card-title">知识点总结</div>
+    <table style="width:100%;border-collapse:collapse">
+      <tr style="background:#1e2a3a">
+        <th style="padding:8px 12px;text-align:left;border:1px solid #2d3f52">概念</th>
+        <th style="padding:8px 12px;text-align:left;border:1px solid #2d3f52">作用</th>
+        <th style="padding:8px 12px;text-align:left;border:1px solid #2d3f52">来自</th>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>interrupt(value)</code></td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">在节点内暂停 Graph，把 value 传给调用方</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>langgraph.types</code></td>
+      </tr>
+      <tr style="background:#131d2a">
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>Command(resume=v)</code></td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">恢复暂停的 Graph，v 成为 interrupt() 的返回值</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>langgraph.types</code></td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>MemorySaver</code>（必须）</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">保存暂停时的 State，恢复时找到断点位置</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">第九课</td>
+      </tr>
+    </table>
+    <div class="tip" style="margin-top:16px">
+      <strong>interrupt() vs Python input()：</strong><br>
+      <code>input()</code> 阻塞终端，只能在命令行用。<br>
+      <code>interrupt()</code> 暂停 Graph，可以跨进程、跨请求、跨时间恢复——Web 应用里用户点按钮就能恢复，不需要保持连接。
+    </div>
+  </div>
+
+  <div class="card" id="l11-pitfalls">
+    <div class="card-title">踩坑记录</div>
+    <div class="pitfall">
+      <div class="pitfall-title">坑 1：没有 checkpointer 时调用 interrupt() 会报错</div>
+      <p><code>interrupt()</code> 依赖 checkpointer 保存暂停点，如果 <code>compile()</code> 没传 <code>checkpointer</code>，运行时会抛异常。<br>
+      必须：<code>graph = builder.compile(checkpointer=MemorySaver())</code></p>
+    </div>
+    <div class="pitfall">
+      <div class="pitfall-title">坑 2：第2次 invoke 的第一个参数是 Command，不是 State dict</div>
+      <p>恢复时传的是 <code>Command(resume=...)</code>，不是 <code>{"question": ...}</code>。<br>
+      如果第2次还传 State dict，Graph 会重新从头开始执行，而不是从断点继续。</p>
+    </div>
+    <div class="pitfall">
+      <div class="pitfall-title">坑 3：两次 invoke 必须用相同的 thread_id</div>
+      <p>checkpointer 靠 thread_id 找到暂停的 State。如果 thread_id 不同，找不到断点，Graph 会报错。</p>
+    </div>
+  </div>
+
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ 第十二课 -->
+<section id="lesson12">
+  <div class="lesson-header">
+    <div class="lesson-num">12</div>
+    <div>
+      <div class="lesson-title">外部访问 State：get_state() + update_state()</div>
+      <div class="lesson-subtitle">暂停时查看并修改 Graph 的状态，再决定如何继续</div>
+    </div>
+  </div>
+
+  <div class="card" id="l12-what">
+    <div class="card-title">为什么需要外部访问</div>
+    <p>第十一课的 interrupt() 让 Graph 暂停，但只能做一件事：传入 <code>Command(resume=...)</code> 继续。</p>
+    <p>现实场景往往更复杂：</p>
+    <ul style="line-height:2.2">
+      <li>暂停后想<strong>先看一眼</strong> LLM 生成了什么内容，再决定要不要批准</li>
+      <li>LLM 的方案不对，想<strong>直接改掉</strong>再继续，而不是重新跑一遍</li>
+      <li>调试时想<strong>手动设置</strong> State 的某个字段，测试后续节点的行为</li>
+    </ul>
+    <p>这两个方法解决这些问题：</p>
+    <table style="width:100%;border-collapse:collapse;margin-top:10px">
+      <tr style="background:#1e2a3a">
+        <th style="padding:8px 12px;text-align:left;border:1px solid #2d3f52">方法</th>
+        <th style="padding:8px 12px;text-align:left;border:1px solid #2d3f52">作用</th>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>graph.get_state(config)</code></td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">读取当前 State 快照（所有字段值、下一步节点）</td>
+      </tr>
+      <tr style="background:#131d2a">
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>graph.update_state(config, values)</code></td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">从外部直接修改 State 字段，不经过任何节点</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card" id="l12-get">
+    <div class="card-title">get_state()：读取当前 State</div>
+    <pre><code>snapshot = graph.get_state(config)
+
+<span class="co"># 当前所有字段的值</span>
+print(snapshot.values)
+<span class="co"># → {"question": "...", "plan": "...", "approved": False}</span>
+
+<span class="co"># 下一步将运行的节点</span>
+print(snapshot.next)
+<span class="co"># → ("review_node",)   ← 暂停在 review_node 里</span>
+<span class="co"># → ()                 ← Graph 已结束</span></code></pre>
+    <p><code>get_state()</code> 返回的是 <code>StateSnapshot</code> 对象，常用的属性：</p>
+    <table style="width:100%;border-collapse:collapse;margin-top:10px">
+      <tr style="background:#1e2a3a">
+        <th style="padding:8px 12px;text-align:left;border:1px solid #2d3f52">属性</th>
+        <th style="padding:8px 12px;text-align:left;border:1px solid #2d3f52">含义</th>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>.values</code></td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">State 的所有字段值（dict）</td>
+      </tr>
+      <tr style="background:#131d2a">
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>.next</code></td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">下一步要运行的节点名 tuple，结束后为空 <code>()</code></td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>.tasks</code></td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">当前挂起任务列表（interrupt 时可看到暂停信息）</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card" id="l12-update">
+    <div class="card-title">update_state()：从外部修改 State</div>
+    <pre><code><span class="co"># 只修改 plan 字段，其他字段不变</span>
+graph.update_state(
+    config,
+    {<span class="str">"plan"</span>: <span class="str">"【人工修改】1) 加索引 2) 避免 SELECT *"</span>},
+)
+
+<span class="co"># 验证修改生效</span>
+snapshot = graph.get_state(config)
+print(snapshot.values[<span class="str">"plan"</span>])
+<span class="co"># → "【人工修改】1) 加索引 2) 避免 SELECT *"</span></code></pre>
+    <p>之后再 <code>invoke(Command(resume="yes"))</code>，<code>execute_node</code> 看到的就是修改后的 <code>plan</code>。</p>
+    <div class="tip">
+      <code>update_state()</code> 直接写入 checkpointer，不执行任何节点。<br>
+      只更新你指定的字段，其他字段保持原值不变。
+    </div>
+  </div>
+
+  <div class="card" id="l12-code">
+    <div class="card-title">完整使用流程（12_state_ops.py）</div>
+    <pre><code>config = {<span class="str">"configurable"</span>: {<span class="str">"thread_id"</span>: <span class="str">"ops-demo"</span>}}
+
+<span class="co"># 第1步：启动 Graph，跑到 interrupt() 暂停</span>
+graph.invoke({<span class="str">"question"</span>: <span class="str">"如何优化慢查询 SQL？"</span>}, config=config)
+
+<span class="co"># 第2步：查看 LLM 生成的方案</span>
+snapshot = graph.get_state(config)
+print(<span class="str">"当前 plan："</span>, snapshot.values[<span class="str">"plan"</span>])
+print(<span class="str">"下一步节点："</span>, snapshot.next)   <span class="co"># ("review_node",)</span>
+
+<span class="co"># 第3步：发现方案不满意，直接改掉</span>
+graph.update_state(
+    config,
+    {<span class="str">"plan"</span>: <span class="str">"【人工修改】使用索引优化..."</span>},
+)
+
+<span class="co"># 第4步：批准，继续执行（execute_node 拿到的是修改后的 plan）</span>
+graph.invoke(Command(resume=<span class="str">"yes"</span>), config=config)</code></pre>
+  </div>
+
+  <div class="card" id="l12-summary">
+    <div class="card-title">知识点总结</div>
+    <table style="width:100%;border-collapse:collapse">
+      <tr style="background:#1e2a3a">
+        <th style="padding:8px 12px;text-align:left;border:1px solid #2d3f52">概念</th>
+        <th style="padding:8px 12px;text-align:left;border:1px solid #2d3f52">说明</th>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>graph.get_state(config)</code></td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">返回 StateSnapshot，读取当前 State 值和执行位置</td>
+      </tr>
+      <tr style="background:#131d2a">
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>snapshot.values</code></td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">State 所有字段的当前值</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>snapshot.next</code></td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">下一步节点 tuple；<code>()</code> 表示已结束</td>
+      </tr>
+      <tr style="background:#131d2a">
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>graph.update_state(config, values)</code></td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">直接写入指定字段，不经过节点，不触发执行</td>
+      </tr>
+    </table>
+    <div class="tip" style="margin-top:16px">
+      <strong>第九课到第十二课的联系：</strong><br>
+      第9课 MemorySaver → State 可以跨调用持久化<br>
+      第11课 interrupt() → Graph 可以暂停等人类<br>
+      第12课 get/update_state → 暂停时可以检查和修改 State<br>
+      三者叠加 = 完整的 Human-in-the-loop 工作流
+    </div>
+  </div>
+
+  <div class="card" id="l12-pitfalls">
+    <div class="card-title">踩坑记录</div>
+    <div class="pitfall">
+      <div class="pitfall-title">坑 1：update_state() 不会触发节点执行</div>
+      <p>调用 <code>update_state()</code> 只是写入 checkpointer，不会触发任何节点运行。<br>
+      改完之后还需要 <code>invoke(Command(resume=...))</code> 才能继续执行 Graph。</p>
+    </div>
+    <div class="pitfall">
+      <div class="pitfall-title">坑 2：对 messages 字段用 update_state() 要注意 reducer</div>
+      <p>如果 State 里有 <code>Annotated[list[BaseMessage], add_messages]</code> 字段，<br>
+      <code>update_state(config, {"messages": [新消息]})</code> 会<strong>追加</strong>而不是覆盖，因为 reducer 是 add_messages。<br>
+      这和普通字段（直接覆盖）行为不同，要注意。</p>
+    </div>
+    <div class="pitfall">
+      <div class="pitfall-title">坑 3：没有 checkpointer 时两个方法都不能用</div>
+      <p><code>get_state()</code> 和 <code>update_state()</code> 都依赖 checkpointer 存取数据。<br>
+      如果 <code>compile()</code> 没传 <code>checkpointer</code>，调用时会报错。</p>
     </div>
   </div>
 
