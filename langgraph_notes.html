@@ -626,6 +626,72 @@ tr:hover td { background: var(--primary-light); transition: background .12s; }
       </div>
     </div>
 
+    <!-- 第十三课 -->
+    <div class="nav-lesson">
+      <a class="nav-lesson-header" href="#lesson13">
+        <div class="nav-lesson-num">13</div>
+        MessagesState：内置消息状态
+        <span class="nav-arrow">▶</span>
+      </a>
+      <div class="nav-sub">
+        <a href="#l13-what">解决什么问题</a>
+        <a href="#l13-usage1">直接使用</a>
+        <a href="#l13-usage2">继承扩展</a>
+        <a href="#l13-code">完整代码</a>
+        <a href="#l13-summary">知识点总结</a>
+      </div>
+    </div>
+
+    <!-- 第十四课 -->
+    <div class="nav-lesson">
+      <a class="nav-lesson-header" href="#lesson14">
+        <div class="nav-lesson-num">14</div>
+        create_react_agent：一行建 Agent
+        <span class="nav-arrow">▶</span>
+      </a>
+      <div class="nav-sub">
+        <a href="#l14-what">解决什么问题</a>
+        <a href="#l14-usage">基本用法</a>
+        <a href="#l14-options">可选参数</a>
+        <a href="#l14-code">完整代码</a>
+        <a href="#l14-summary">知识点总结</a>
+        <a href="#l14-when">何时手动搭</a>
+      </div>
+    </div>
+
+    <!-- 第十五课 -->
+    <div class="nav-lesson">
+      <a class="nav-lesson-header" href="#lesson15">
+        <div class="nav-lesson-num">15</div>
+        历史快照：get_state_history()
+        <span class="nav-arrow">▶</span>
+      </a>
+      <div class="nav-sub">
+        <a href="#l15-what">和 get_state() 的区别</a>
+        <a href="#l15-usage">基本用法</a>
+        <a href="#l15-travel">时光回溯</a>
+        <a href="#l15-code">完整代码</a>
+        <a href="#l15-summary">知识点总结</a>
+      </div>
+    </div>
+
+    <!-- 第十六课 -->
+    <div class="nav-lesson">
+      <a class="nav-lesson-header" href="#lesson16">
+        <div class="nav-lesson-num">16</div>
+        Subgraph：把 Graph 当节点用
+        <span class="nav-arrow">▶</span>
+      </a>
+      <div class="nav-sub">
+        <a href="#l16-what">什么是子图</a>
+        <a href="#l16-state">State 通信规则</a>
+        <a href="#l16-code">完整代码</a>
+        <a href="#l16-flow">执行流程图</a>
+        <a href="#l16-summary">知识点总结</a>
+        <a href="#l16-pitfalls">踩坑记录</a>
+      </div>
+    </div>
+
   </div>
 </nav>
 
@@ -3602,6 +3668,693 @@ graph.invoke(Command(resume=<span class="str">"yes"</span>), config=config)</cod
       <div class="pitfall-title">坑 3：没有 checkpointer 时两个方法都不能用</div>
       <p><code>get_state()</code> 和 <code>update_state()</code> 都依赖 checkpointer 存取数据。<br>
       如果 <code>compile()</code> 没传 <code>checkpointer</code>，调用时会报错。</p>
+    </div>
+  </div>
+
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ 第十三课 -->
+<section id="lesson13">
+  <div class="lesson-header">
+    <div class="lesson-num">13</div>
+    <div>
+      <div class="lesson-title">MessagesState：内置消息状态</div>
+      <div class="lesson-subtitle">省掉每课都要重复写的 Annotated[list[BaseMessage], add_messages]</div>
+    </div>
+  </div>
+
+  <div class="card" id="l13-what">
+    <div class="card-title">解决什么问题</div>
+    <p>这一课是对<strong>第六课的简化</strong>。第六课故意用完整写法，是为了让你看清楚 reducer 的工作原理。理解之后，LangGraph 提供了内置的 <code>MessagesState</code> 把这段模板打包好，不需要每次都重复写。</p>
+    <p>从第六课起，每次定义 State 都要写同一段 5 行模板。第十三课用 <code>MessagesState</code> 代替它，效果完全相同。</p>
+  </div>
+
+  <div class="card">
+    <div class="card-title">新旧写法对比（对应第六课）</div>
+    <div style="display:flex;gap:16px;margin-top:8px">
+      <div style="flex:1;min-width:0">
+        <div style="background:#3a1a1a;color:#f87171;padding:6px 12px;border-radius:4px 4px 0 0;font-size:13px;font-weight:600">❌ 旧写法（第六课起，每课重复）</div>
+        <pre style="margin:0;border-radius:0 0 4px 4px;border:1px solid #3a1a1a"><code><span class="kw">from</span> typing <span class="kw">import</span> Annotated
+<span class="kw">from</span> langchain_core.messages <span class="kw">import</span> BaseMessage
+<span class="kw">from</span> langgraph.graph.message <span class="kw">import</span> add_messages
+
+<span class="kw">class</span> State(TypedDict):
+    messages: Annotated[
+        list[BaseMessage],
+        add_messages
+    ]
+
+builder = StateGraph(State)</code></pre>
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="background:#1a3a1a;color:#4ade80;padding:6px 12px;border-radius:4px 4px 0 0;font-size:13px;font-weight:600">✅ 新写法（第十三课起推荐）</div>
+        <pre style="margin:0;border-radius:0 0 4px 4px;border:1px solid #1a3a1a"><code><span class="kw">from</span> langgraph.graph <span class="kw">import</span> MessagesState
+
+
+
+
+<span class="co"># 内置好了，直接用</span>
+<span class="co"># （内部就是上面那 5 行）</span>
+
+
+
+builder = StateGraph(MessagesState)</code></pre>
+      </div>
+    </div>
+    <div class="tip" style="margin-top:14px">
+      两种写法效果完全一样，节点代码不需要改一个字。<br>
+      先学旧写法是为了理解 <strong>Annotated、reducer、add_messages</strong> 是什么，知道了原理再用简写，遇到问题才知道从哪里找原因。
+    </div>
+  </div>
+
+  <div class="card" id="l13-usage1">
+    <div class="card-title">用法 1：直接使用 MessagesState</div>
+    <p>State 只需要 <code>messages</code> 字段时，直接传给 <code>StateGraph</code>：</p>
+    <pre><code>builder = StateGraph(MessagesState)
+
+<span class="kw">def</span> <span class="fn">llm_node</span>(state: MessagesState) -> dict:
+    response = llm.invoke(state[<span class="str">"messages"</span>])
+    <span class="kw">return</span> {<span class="str">"messages"</span>: [response]}   <span class="co"># 追加语义，和第六课完全一样</span></code></pre>
+    <p>节点内部读写 <code>state["messages"]</code> 的方式和之前完全一样，无需改动任何节点代码。</p>
+  </div>
+
+  <div class="card" id="l13-usage2">
+    <div class="card-title">用法 2：继承 MessagesState，添加额外字段</div>
+    <p>需要 <code>messages</code> 之外的字段时，继承后添加：</p>
+    <pre><code><span class="kw">class</span> MyState(MessagesState):
+    topic: str    <span class="co"># 普通字段，覆盖语义</span>
+    count: int    <span class="co"># 普通字段，覆盖语义</span>
+
+<span class="co"># messages 自动继承（仍是 add_messages 追加语义）</span>
+<span class="co"># topic、count 是普通字段（赋值覆盖）</span>
+
+builder = StateGraph(MyState)</code></pre>
+    <div class="tip">
+      继承后 <code>messages</code> 字段的 reducer 不变，仍然是追加。额外字段是普通覆盖语义，和第一课的 <code>answer</code>、<code>question</code> 字段一样。
+    </div>
+  </div>
+
+  <div class="card" id="l13-code">
+    <div class="card-title">完整代码对比（13_messages_state.py）</div>
+    <pre><code><span class="co"># ── 第六课的写法（以后可以不用了）──────────────────</span>
+<span class="kw">from</span> typing <span class="kw">import</span> Annotated
+<span class="kw">from</span> langchain_core.messages <span class="kw">import</span> BaseMessage
+<span class="kw">from</span> langgraph.graph.message <span class="kw">import</span> add_messages
+
+<span class="kw">class</span> OldState(TypedDict):
+    messages: Annotated[list[BaseMessage], add_messages]
+
+<span class="co"># ── 新写法（推荐）──────────────────────────────────</span>
+<span class="kw">from</span> langgraph.graph <span class="kw">import</span> MessagesState
+
+<span class="co"># 用法1：只需要 messages</span>
+builder = StateGraph(MessagesState)
+
+<span class="co"># 用法2：需要额外字段</span>
+<span class="kw">class</span> MyState(MessagesState):
+    topic: str
+
+builder = StateGraph(MyState)
+
+<span class="co"># 节点写法不变</span>
+<span class="kw">def</span> <span class="fn">agent_node</span>(state: MyState) -> dict:
+    response = llm_with_tools.invoke(state[<span class="str">"messages"</span>])
+    <span class="kw">return</span> {<span class="str">"messages"</span>: [response]}</code></pre>
+  </div>
+
+  <div class="card" id="l13-summary">
+    <div class="card-title">知识点总结</div>
+    <table style="width:100%;border-collapse:collapse">
+      <tr style="background:#1e2a3a">
+        <th style="padding:8px 12px;text-align:left;border:1px solid #2d3f52">概念</th>
+        <th style="padding:8px 12px;text-align:left;border:1px solid #2d3f52">说明</th>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>MessagesState</code></td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">LangGraph 内置 State，自带 <code>messages: Annotated[list[BaseMessage], add_messages]</code></td>
+      </tr>
+      <tr style="background:#131d2a">
+        <td style="padding:8px 12px;border:1px solid #2d3f52">直接用</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>StateGraph(MessagesState)</code>，只有 messages 字段</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">继承扩展</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>class MyState(MessagesState): extra: str</code>，加自定义字段</td>
+      </tr>
+    </table>
+    <div class="tip" style="margin-top:16px">
+      <strong>回顾一下：</strong> 第六课到第十二课，凡是用到 <code>messages</code> 字段的课，<br>
+      State 定义都可以替换成 <code>MessagesState</code> 或继承自它，效果完全相同，代码更简洁。<br>
+      大多数真实 LangGraph 项目都用 <code>MessagesState</code> 作为起点。
+    </div>
+  </div>
+
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ 第十四课 -->
+<section id="lesson14">
+  <div class="lesson-header">
+    <div class="lesson-num">14</div>
+    <div>
+      <div class="lesson-title">create_react_agent：一行代码建好 ReAct Agent</div>
+      <div class="lesson-subtitle">第八课的 7 步手动流程，现在用一行函数完成</div>
+    </div>
+  </div>
+
+  <div class="card" id="l14-what">
+    <div class="card-title">解决什么问题</div>
+    <p>这一课是对<strong>第八课的简化</strong>。第八课故意手动搭了完整的 ReAct Agent，是为了让你理解每一步在做什么：ToolNode 怎么执行工具、tools_condition 怎么路由、循环怎么形成。理解之后，langchain 提供了 <code>create_agent</code> 把这 7 步打包成一行。</p>
+    <div class="tip">
+      <strong>版本变化：</strong> 旧版 <code>langgraph.prebuilt.create_react_agent</code> 在 LangGraph 1.x 中已废弃。
+      新版是 <code>from langchain.agents import create_agent</code>（需要安装 <code>langchain</code> 主包）。
+      本课使用新版。参数变化：旧版用 <code>prompt=</code>，新版用 <code>system_prompt=</code>。
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">为什么这个快捷方式从 LangGraph 移到了 LangChain？</div>
+    <p>这背后是两个包的<strong>职责分工演变</strong>：</p>
+    <table style="width:100%;border-collapse:collapse;margin-top:10px">
+      <tr style="background:#1e2a3a">
+        <th style="padding:8px 12px;text-align:left;border:1px solid #2d3f52">时间</th>
+        <th style="padding:8px 12px;text-align:left;border:1px solid #2d3f52">发生了什么</th>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">LangGraph 早期</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>create_react_agent</code> 在 <code>langgraph.prebuilt</code> 里，是 LangGraph 原生的快捷方式</td>
+      </tr>
+      <tr style="background:#131d2a">
+        <td style="padding:8px 12px;border:1px solid #2d3f52">LangGraph 1.x</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">LangGraph 专注做"图"的底层基础能力，把"高层封装"移交给 LangChain 维护</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">现在</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>langchain.agents.create_agent</code> 是它的新家，底层仍然是 LangGraph，但入口在 LangChain 侧</td>
+      </tr>
+    </table>
+    <p style="margin-top:14px">现在两个包的定位更清晰了：</p>
+    <table style="width:100%;border-collapse:collapse">
+      <tr style="background:#1e2a3a">
+        <th style="padding:8px 12px;text-align:left;border:1px solid #2d3f52">包</th>
+        <th style="padding:8px 12px;text-align:left;border:1px solid #2d3f52">负责什么</th>
+        <th style="padding:8px 12px;text-align:left;border:1px solid #2d3f52">对应哪些课</th>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><strong>LangGraph</strong></td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">图结构、节点、边、State、checkpointer 等底层机制</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">第1-13课</td>
+      </tr>
+      <tr style="background:#131d2a">
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><strong>LangChain</strong></td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">封装常见模式（ReAct Agent 等），开箱即用</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">第14课</td>
+      </tr>
+    </table>
+    <div class="tip" style="margin-top:14px">
+      <strong>这门课的学习路线是正确的：</strong><br>
+      先把 LangGraph 底层学透（第1-13课），再用 <code>create_agent</code> 才知道它帮你省了什么、
+      遇到问题该去哪里找原因。如果你之前学过 LangChain 的 agent，会发现 <code>create_agent</code> 很眼熟——
+      它就是"LangChain 封装 + LangGraph 执行"的结合体。
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">新旧写法对比（对应第八课）</div>
+    <div style="display:flex;gap:16px;margin-top:8px">
+      <div style="flex:1;min-width:0">
+        <div style="background:#3a1a1a;color:#f87171;padding:6px 12px;border-radius:4px 4px 0 0;font-size:13px;font-weight:600">❌ 旧写法（第八课，7 步手动搭）</div>
+        <pre style="margin:0;border-radius:0 0 4px 4px;border:1px solid #3a1a1a"><code><span class="co"># 1. 绑定工具</span>
+llm_with_tools = llm.bind_tools(tools)
+
+<span class="co"># 2. 定义 State</span>
+<span class="kw">class</span> State(MessagesState): pass
+
+<span class="co"># 3. 写 agent 节点</span>
+<span class="kw">def</span> <span class="fn">agent_node</span>(state):
+    res = llm_with_tools.invoke(
+        state[<span class="str">"messages"</span>])
+    <span class="kw">return</span> {<span class="str">"messages"</span>: [res]}
+
+<span class="co"># 4-7. 组装 Graph</span>
+builder = StateGraph(State)
+builder.add_node(<span class="str">"agent"</span>, agent_node)
+builder.add_node(<span class="str">"tools"</span>, ToolNode(tools))
+builder.add_edge(START, <span class="str">"agent"</span>)
+builder.add_conditional_edges(
+    <span class="str">"agent"</span>, tools_condition)
+builder.add_edge(<span class="str">"tools"</span>, <span class="str">"agent"</span>)
+graph = builder.compile()</code></pre>
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="background:#1a3a1a;color:#4ade80;padding:6px 12px;border-radius:4px 4px 0 0;font-size:13px;font-weight:600">✅ 新写法（第十四课，1 行搞定）</div>
+        <pre style="margin:0;border-radius:0 0 4px 4px;border:1px solid #1a3a1a"><code><span class="kw">from</span> langchain.agents <span class="kw">import</span> create_agent
+
+<span class="co"># 上面 7 步全部封装在这一行里</span>
+<span class="co"># 内部结构和旧写法完全一样</span>
+graph = create_agent(llm, tools)
+
+
+
+
+<span class="co"># invoke / stream 用法完全不变</span>
+result = graph.invoke({
+    <span class="str">"messages"</span>: [HumanMessage(
+        content=<span class="str">"6×7 再加 100"</span>)]
+})</code></pre>
+      </div>
+    </div>
+    <div class="tip" style="margin-top:14px">
+      两种写法运行结果完全相同。<br>
+      先学旧写法是为了理解 <strong>ToolNode、tools_condition、循环结构</strong> 是什么，知道了原理再用简写，自定义需求时才知道从哪里下手改。
+    </div>
+  </div>
+
+  <div class="card" id="l14-usage">
+    <div class="card-title">基本用法</div>
+    <pre><code><span class="kw">from</span> langchain.agents <span class="kw">import</span> create_agent
+
+graph = create_agent(llm, tools)
+
+<span class="co"># invoke 用法和第八课完全一样</span>
+result = graph.invoke({
+    <span class="str">"messages"</span>: [HumanMessage(content=<span class="str">"6 乘以 7 再加 100 等于多少？"</span>)]
+})
+print(result[<span class="str">"messages"</span>][-1].content)</code></pre>
+    <p>State 用的是 <code>MessagesState</code>（第十三课），所以输入输出格式和之前完全一致。</p>
+  </div>
+
+  <div class="card" id="l14-options">
+    <div class="card-title">可选参数</div>
+    <pre><code><span class="co"># 加记忆（第九课的 MemorySaver）</span>
+graph = create_agent(
+    llm,
+    tools,
+    checkpointer=MemorySaver(),
+)
+
+<span class="co"># 加系统提示（注意是 system_prompt，不是 prompt）</span>
+graph = create_agent(
+    llm,
+    tools,
+    system_prompt=<span class="str">"你是一个数学助手，只回答数学问题。"</span>,
+)
+
+<span class="co"># 两个都加</span>
+graph = create_agent(
+    llm,
+    tools,
+    checkpointer=MemorySaver(),
+    system_prompt=<span class="str">"你是数学助手。"</span>,
+)</code></pre>
+    <table style="width:100%;border-collapse:collapse;margin-top:12px">
+      <tr style="background:#1e2a3a">
+        <th style="padding:8px 12px;text-align:left;border:1px solid #2d3f52">参数</th>
+        <th style="padding:8px 12px;text-align:left;border:1px solid #2d3f52">作用</th>
+        <th style="padding:8px 12px;text-align:left;border:1px solid #2d3f52">对应哪课</th>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>model</code>（传 llm）</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">语言模型（必填）</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">第1课起</td>
+      </tr>
+      <tr style="background:#131d2a">
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>tools</code></td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">工具列表</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">第7课</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>checkpointer</code></td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">启用多轮记忆</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">第9课</td>
+      </tr>
+      <tr style="background:#131d2a">
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>system_prompt</code></td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">系统提示，字符串或 SystemMessage</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">第2课</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card" id="l14-code">
+    <div class="card-title">完整代码（14_prebuilt_agent.py）</div>
+    <pre><code><span class="kw">from</span> langgraph.prebuilt <span class="kw">import</span> create_react_agent
+<span class="kw">from</span> langgraph.checkpoint.memory <span class="kw">import</span> MemorySaver
+
+<span class="kw">@tool</span>
+<span class="kw">def</span> <span class="fn">add</span>(a: int, b: int) -> int:
+    <span class="str">"""计算两个整数的和"""</span>
+    <span class="kw">return</span> a + b
+
+<span class="kw">@tool</span>
+<span class="kw">def</span> <span class="fn">multiply</span>(a: int, b: int) -> int:
+    <span class="str">"""计算两个整数的乘积"""</span>
+    <span class="kw">return</span> a * b
+
+<span class="co"># 一行创建，带记忆</span>
+graph = create_react_agent(llm, [add, multiply], checkpointer=MemorySaver())
+
+config = {<span class="str">"configurable"</span>: {<span class="str">"thread_id"</span>: <span class="str">"math-session"</span>}}
+
+<span class="co"># 第1轮</span>
+graph.invoke(
+    {<span class="str">"messages"</span>: [HumanMessage(content=<span class="str">"我叫小明，6 乘以 7 是多少？"</span>)]},
+    config=config,
+)
+
+<span class="co"># 第2轮（记得小明 + 记得上轮结果）</span>
+result = graph.invoke(
+    {<span class="str">"messages"</span>: [HumanMessage(content=<span class="str">"把刚才的结果再加 100"</span>)]},
+    config=config,
+)
+print(result[<span class="str">"messages"</span>][-1].content)</code></pre>
+  </div>
+
+  <div class="card" id="l14-summary">
+    <div class="card-title">知识点总结</div>
+    <table style="width:100%;border-collapse:collapse">
+      <tr style="background:#1e2a3a">
+        <th style="padding:8px 12px;text-align:left;border:1px solid #2d3f52">概念</th>
+        <th style="padding:8px 12px;text-align:left;border:1px solid #2d3f52">说明</th>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>create_react_agent(llm, tools)</code></td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">一行创建完整 ReAct Agent，返回已 compile 的 Graph</td>
+      </tr>
+      <tr style="background:#131d2a">
+        <td style="padding:8px 12px;border:1px solid #2d3f52">内部结构</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">MessagesState + agent_node + ToolNode + tools_condition 循环（即第8、13课的组合）</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">invoke / stream</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">用法和手动搭的 Graph 完全一样</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card" id="l14-when">
+    <div class="card-title">什么时候用 create_react_agent，什么时候手动搭</div>
+    <table style="width:100%;border-collapse:collapse">
+      <tr style="background:#1e2a3a">
+        <th style="padding:8px 12px;text-align:left;border:1px solid #2d3f52">场景</th>
+        <th style="padding:8px 12px;text-align:left;border:1px solid #2d3f52">推荐</th>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">标准 ReAct 循环，工具调用，无特殊逻辑</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>create_react_agent</code>，省事</td>
+      </tr>
+      <tr style="background:#131d2a">
+        <td style="padding:8px 12px;border:1px solid #2d3f52">需要自定义路由、额外节点、interrupt、非标准流程</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">手动搭（第8课的方式）</td>
+      </tr>
+    </table>
+    <div class="tip" style="margin-top:14px">
+      和第十三课的 <code>MessagesState</code> 一样——先学手动搭（第8课），理解了原理之后，<code>create_react_agent</code> 只是省去重复步骤，遇到问题知道从哪里找原因。
+    </div>
+  </div>
+
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ 第十五课 -->
+<section id="lesson15">
+  <div class="lesson-header">
+    <div class="lesson-num">15</div>
+    <div>
+      <div class="lesson-title">历史快照：get_state_history()</div>
+      <div class="lesson-subtitle">查看 Graph 每一步的状态变化，随时回到过去重新执行</div>
+    </div>
+  </div>
+
+  <div class="card" id="l15-what">
+    <div class="card-title">和 get_state() 的区别</div>
+    <p>第十二课的 <code>get_state()</code> 只能看当前这一刻的 State。<br>
+    <code>get_state_history()</code> 返回这个 thread 里<strong>每一步执行后</strong>保存的所有快照，从最新到最旧。</p>
+    <table style="width:100%;border-collapse:collapse;margin-top:10px">
+      <tr style="background:#1e2a3a">
+        <th style="padding:8px 12px;text-align:left;border:1px solid #2d3f52">方法</th>
+        <th style="padding:8px 12px;text-align:left;border:1px solid #2d3f52">返回</th>
+        <th style="padding:8px 12px;text-align:left;border:1px solid #2d3f52">用途</th>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>get_state(config)</code></td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">当前快照（1个）</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">查看现在是什么状态</td>
+      </tr>
+      <tr style="background:#131d2a">
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>get_state_history(config)</code></td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">所有历史快照（迭代器）</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">调试、时光回溯</td>
+      </tr>
+    </table>
+    <div class="tip">前置条件同第九、十二课：<code>compile(checkpointer=MemorySaver())</code>，checkpointer 存的就是这些快照。</div>
+  </div>
+
+  <div class="card" id="l15-usage">
+    <div class="card-title">基本用法</div>
+    <pre><code>history = list(graph.get_state_history(config))
+
+<span class="co"># 对于一个 3 节点 Graph（llm_node → count_node → print_node），快照从新到旧：</span>
+<span class="co"># 快照 0：next=()               ← Graph 结束后</span>
+<span class="co"># 快照 1：next=("print_node",)  ← count_node 跑完</span>
+<span class="co"># 快照 2：next=("count_node",)  ← llm_node 跑完</span>
+<span class="co"># 快照 3：next=("llm_node",)    ← 刚开始</span>
+<span class="co"># 快照 4：next=("__start__",)   ← 初始输入</span>
+
+<span class="kw">for</span> snapshot <span class="kw">in</span> history:
+    print(snapshot.next, snapshot.values)</code></pre>
+    <p>每个 <code>snapshot</code> 是 <code>StateSnapshot</code>，字段和第十二课一样：<code>.values</code>、<code>.next</code>、<code>.config</code>。</p>
+  </div>
+
+  <div class="card" id="l15-travel">
+    <div class="card-title">时光回溯：从某个历史快照重新执行</div>
+    <p>找到目标快照后，用它的 <code>.config</code>（内含 <code>checkpoint_id</code>）重新 <code>invoke</code>，Graph 从那个节点接着跑：</p>
+    <pre><code><span class="co"># 找到"下一步是 count_node"的快照（llm_node 刚跑完的那一刻）</span>
+target = None
+<span class="kw">for</span> snapshot <span class="kw">in</span> graph.get_state_history(config):
+    <span class="kw">if</span> snapshot.next == (<span class="str">"count_node"</span>,):
+        target = snapshot
+        <span class="kw">break</span>
+
+<span class="co"># 用 target.config 重新 invoke：从 count_node 开始，跳过 llm_node</span>
+result = graph.invoke(None, config=target.config)</code></pre>
+    <div class="tip">
+      <strong>典型场景：</strong><br>
+      LLM 生成的回答不满意 → 找到 llm_node <em>之前</em>的快照 → 重新 invoke<br>
+      → LLM 重新生成（有随机性，结果可能不同），后续节点重新跑<br><br>
+      注意传 <code>None</code> 而不是 State dict，表示"不新增输入，从快照恢复并继续"。
+    </div>
+    <p style="margin-top:14px"><strong>回滚时哪些字段有值、哪些被清掉？</strong></p>
+    <p>以回滚到"llm_node 刚跑完、count_node 还没开始"的快照为例：</p>
+    <pre><code><span class="co"># 回滚后恢复的 State：</span>
+{
+    <span class="str">"question"</span>: <span class="str">"什么是机器学习？"</span>,  <span class="co"># ← 有值（llm_node 之前就有）</span>
+    <span class="str">"answer"</span>:   <span class="str">"机器学习是..."</span>,     <span class="co"># ← 有值（llm_node 已写入）</span>
+    <span class="str">"word_count"</span>: 0,                   <span class="co"># ← 回滚掉了（count_node 还没跑）</span>
+}</code></pre>
+    <p><code>count_node</code> 重新执行时，<code>return {"word_count": len(state["answer"])}</code> 是这次重新计算出来的新值，不是第一次的结果。<br>
+    简单说：<strong>快照那一刻之后写入的字段全部回滚，之前写入的字段保留。</strong></p>
+  </div>
+
+  <div class="card" id="l15-code">
+    <div class="card-title">完整代码（15_state_history.py）</div>
+    <pre><code>config = {<span class="str">"configurable"</span>: {<span class="str">"thread_id"</span>: <span class="str">"history-demo"</span>}}
+
+<span class="co"># 执行一次</span>
+graph.invoke({<span class="str">"question"</span>: <span class="str">"什么是机器学习？"</span>}, config=config)
+
+<span class="co"># 查看所有历史快照</span>
+<span class="kw">for</span> i, snapshot <span class="kw">in</span> enumerate(graph.get_state_history(config)):
+    print(<span class="str">f"快照 {i}：next={snapshot.next}"</span>)
+    print(<span class="str">f"         values={snapshot.values}"</span>)
+
+<span class="co"># 时光回溯：找到 llm_node 刚跑完的快照，从 count_node 重新跑</span>
+<span class="kw">for</span> snapshot <span class="kw">in</span> graph.get_state_history(config):
+    <span class="kw">if</span> snapshot.next == (<span class="str">"count_node"</span>,):
+        result = graph.invoke(None, config=snapshot.config)
+        print(<span class="str">"重新执行完毕，word_count ="</span>, result[<span class="str">"word_count"</span>])
+        <span class="kw">break</span></code></pre>
+  </div>
+
+  <div class="card" id="l15-summary">
+    <div class="card-title">知识点总结</div>
+    <table style="width:100%;border-collapse:collapse">
+      <tr style="background:#1e2a3a">
+        <th style="padding:8px 12px;text-align:left;border:1px solid #2d3f52">概念</th>
+        <th style="padding:8px 12px;text-align:left;border:1px solid #2d3f52">说明</th>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>graph.get_state_history(config)</code></td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">返回迭代器，从最新到最旧，每个节点跑完后产生一个快照</td>
+      </tr>
+      <tr style="background:#131d2a">
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>snapshot.config</code></td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">含 <code>checkpoint_id</code>，传给 invoke 可从该快照恢复执行</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>graph.invoke(None, config=snapshot.config)</code></td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">从历史快照恢复，传 None 表示不新增输入</td>
+      </tr>
+    </table>
+    <div class="tip" style="margin-top:16px">
+      <strong>第九、十二、十五课的关系：</strong><br>
+      第9课 MemorySaver → 每步执行后自动存快照<br>
+      第12课 get_state() → 读取当前快照，可修改<br>
+      第15课 get_state_history() → 读取全部历史快照，可回到任意一步
+    </div>
+  </div>
+
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ 第十六课 -->
+<section id="lesson16">
+  <div class="lesson-header">
+    <div class="lesson-num">16</div>
+    <div>
+      <div class="lesson-title">Subgraph：把 Graph 当节点用</div>
+      <div class="lesson-subtitle">编译好的 Graph 可以直接作为另一个 Graph 的节点</div>
+    </div>
+  </div>
+
+  <div class="card" id="l16-what">
+    <div class="card-title">什么是子图</div>
+    <p>前十五课的节点都是 Python 函数。本课引入第二种节点类型：<strong>编译好的 Graph</strong>。</p>
+    <pre><code>subgraph = sub_builder.compile()        <span class="co"># 编译成 Graph</span>
+outer_builder.add_node(<span class="str">"qa"</span>, subgraph)  <span class="co"># ★ 直接当节点传入</span></code></pre>
+    <p>外层 Graph 调用到 <code>"qa"</code> 这个节点时，实际上是把 subgraph 完整跑一遍，然后把结果写回外层 State。</p>
+    <div class="tip">
+      用途：把复杂逻辑拆成独立的子图，外层 Graph 像调用函数一样使用它，内部细节对外层透明。
+    </div>
+  </div>
+
+  <div class="card" id="l16-state">
+    <div class="card-title">State 通信规则：同名字段自动传递</div>
+    <p>外层 State 和子图 State 通过<strong>同名字段</strong>交换数据：</p>
+    <table style="width:100%;border-collapse:collapse;margin-top:10px">
+      <tr style="background:#1e2a3a">
+        <th style="padding:8px 12px;text-align:left;border:1px solid #2d3f52">方向</th>
+        <th style="padding:8px 12px;text-align:left;border:1px solid #2d3f52">规则</th>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">外层 → 子图</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">两边 State 都有的字段，自动传入子图</td>
+      </tr>
+      <tr style="background:#131d2a">
+        <td style="padding:8px 12px;border:1px solid #2d3f52">子图 → 外层</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">两边 State 都有的字段，子图结果自动写回外层</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">只有外层有的字段</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">子图看不到，子图执行后也不会被清掉</td>
+      </tr>
+      <tr style="background:#131d2a">
+        <td style="padding:8px 12px;border:1px solid #2d3f52">只有子图有的字段</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">不会出现在外层 State 里</td>
+      </tr>
+    </table>
+    <p style="margin-top:12px">本课的例子：</p>
+    <pre><code><span class="kw">class</span> SubState(TypedDict):
+    question: str    <span class="co"># 共有 → 外层传入</span>
+    answer: str      <span class="co"># 共有 → 子图写回外层</span>
+    word_count: int  <span class="co"># 共有 → 子图写回外层</span>
+
+<span class="kw">class</span> OuterState(TypedDict):
+    question: str
+    answer: str
+    word_count: int
+    label: str       <span class="co"># 只有外层有 → 子图不知道，不会被清掉</span></code></pre>
+  </div>
+
+  <div class="card" id="l16-code">
+    <div class="card-title">完整代码（16_subgraph.py）</div>
+    <pre><code><span class="co"># ── 子图：生成回答 + 统计字数 ──────────────────────────</span>
+sub_builder = StateGraph(SubState)
+sub_builder.add_node(<span class="str">"llm_node"</span>,   llm_node)
+sub_builder.add_node(<span class="str">"count_node"</span>, count_node)
+sub_builder.add_edge(START, <span class="str">"llm_node"</span>)
+sub_builder.add_edge(<span class="str">"llm_node"</span>,   <span class="str">"count_node"</span>)
+sub_builder.add_edge(<span class="str">"count_node"</span>, END)
+subgraph = sub_builder.compile()   <span class="co"># 编译好备用</span>
+
+<span class="co"># ── 外层 Graph：打标签 + 调子图 + 打印 ─────────────────</span>
+outer_builder = StateGraph(OuterState)
+outer_builder.add_node(<span class="str">"label_node"</span>,  label_node)
+outer_builder.add_node(<span class="str">"qa_subgraph"</span>, subgraph)   <span class="co"># ★ 子图当节点</span>
+outer_builder.add_node(<span class="str">"print_node"</span>,  print_node)
+
+outer_builder.add_edge(START,           <span class="str">"label_node"</span>)
+outer_builder.add_edge(<span class="str">"label_node"</span>,   <span class="str">"qa_subgraph"</span>)
+outer_builder.add_edge(<span class="str">"qa_subgraph"</span>,  <span class="str">"print_node"</span>)
+outer_builder.add_edge(<span class="str">"print_node"</span>,   END)
+graph = outer_builder.compile()
+
+graph.invoke({
+    <span class="str">"question"</span>:   <span class="str">"什么是深度学习？"</span>,
+    <span class="str">"answer"</span>:     <span class="str">""</span>,
+    <span class="str">"word_count"</span>: 0,
+    <span class="str">"label"</span>:      <span class="str">""</span>,
+})</code></pre>
+  </div>
+
+  <div class="card" id="l16-flow">
+    <div class="card-title">执行流程图</div>
+    <pre style="line-height:1.9;font-size:15px">外层 Graph
+  START
+    │
+    ▼
+  label_node
+    label = "【问题】什么是深度学习？"
+    │
+    ▼
+  qa_subgraph（整个子图作为一个节点执行）
+    ┌─────────────────────────────────────┐
+    │  子图内部：                           │
+    │  START → llm_node → count_node → END │
+    │  传入：question                       │
+    │  产出：answer、word_count             │
+    └─────────────────────────────────────┘
+    answer、word_count 写回外层 State
+    label 不变（子图没有这个字段）
+    │
+    ▼
+  print_node
+    打印 label、answer、word_count
+    │
+    ▼
+  END</pre>
+  </div>
+
+  <div class="card" id="l16-summary">
+    <div class="card-title">知识点总结</div>
+    <table style="width:100%;border-collapse:collapse">
+      <tr style="background:#1e2a3a">
+        <th style="padding:8px 12px;text-align:left;border:1px solid #2d3f52">概念</th>
+        <th style="padding:8px 12px;text-align:left;border:1px solid #2d3f52">说明</th>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">子图作节点</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>compiled_graph</code> 可以直接传给 <code>add_node()</code></td>
+      </tr>
+      <tr style="background:#131d2a">
+        <td style="padding:8px 12px;border:1px solid #2d3f52">State 通信</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">通过同名字段自动传入 / 写回，只传交集</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">外层独有字段</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">子图看不到，子图执行后也不会清掉</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card" id="l16-pitfalls">
+    <div class="card-title">踩坑记录</div>
+    <div class="pitfall">
+      <div class="pitfall-title">坑 1：子图字段名和外层对不上，数据传不进去</div>
+      <p>子图 State 里的字段名必须和外层 State 里的字段名<strong>完全一致</strong>才能自动传递。<br>
+      比如外层叫 <code>question</code>，子图叫 <code>query</code>，数据就传不进去，子图拿到的是空值。</p>
+    </div>
+    <div class="pitfall">
+      <div class="pitfall-title">坑 2：子图必须先 compile() 再当节点</div>
+      <p><code>add_node("name", sub_builder)</code> 是错的，<code>sub_builder</code> 是 builder，不是 Graph。<br>
+      必须先 <code>subgraph = sub_builder.compile()</code>，再 <code>add_node("name", subgraph)</code>。</p>
     </div>
   </div>
 
