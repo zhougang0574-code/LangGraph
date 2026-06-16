@@ -692,6 +692,111 @@ tr:hover td { background: var(--primary-light); transition: background .12s; }
       </div>
     </div>
 
+    <!-- 第十七课 -->
+    <div class="nav-lesson">
+      <a class="nav-lesson-header" href="#lesson17">
+        <div class="nav-lesson-num">17</div>
+        Multi-Agent：Supervisor 模式
+        <span class="nav-arrow">▶</span>
+      </a>
+      <div class="nav-sub">
+        <a href="#l17-what">什么是 Supervisor 模式</a>
+        <a href="#l17-arch">架构图</a>
+        <a href="#l17-code">完整代码</a>
+        <a href="#l17-flow">执行流程</a>
+        <a href="#l17-summary">知识点总结</a>
+      </div>
+    </div>
+
+    <!-- 第十八课 -->
+    <div class="nav-lesson">
+      <a class="nav-lesson-header" href="#lesson18">
+        <div class="nav-lesson-num">18</div>
+        Send API：并行执行
+        <span class="nav-arrow">▶</span>
+      </a>
+      <div class="nav-sub">
+        <a href="#l18-what">什么是 Send</a>
+        <a href="#l18-reducer">Reducer 的作用</a>
+        <a href="#l18-code">完整代码</a>
+        <a href="#l18-flow">执行流程</a>
+        <a href="#l18-summary">知识点总结</a>
+      </div>
+    </div>
+
+    <!-- 第十九课 -->
+    <div class="nav-lesson">
+      <a class="nav-lesson-header" href="#lesson19">
+        <div class="nav-lesson-num">19</div>
+        SqliteSaver：持久化存储
+        <span class="nav-arrow">▶</span>
+      </a>
+      <div class="nav-sub">
+        <a href="#l19-what">MemorySaver vs SqliteSaver</a>
+        <a href="#l19-code">完整代码</a>
+        <a href="#l19-summary">知识点总结</a>
+      </div>
+    </div>
+
+    <!-- 第二十课 -->
+    <div class="nav-lesson">
+      <a class="nav-lesson-header" href="#lesson20">
+        <div class="nav-lesson-num">20</div>
+        astream_events：token 级别流式输出
+        <span class="nav-arrow">▶</span>
+      </a>
+      <div class="nav-sub">
+        <a href="#l20-what">stream vs astream_events</a>
+        <a href="#l20-code">完整代码</a>
+        <a href="#l20-events">事件类型说明</a>
+        <a href="#l20-summary">知识点总结</a>
+      </div>
+    </div>
+
+    <!-- 第二十一课 -->
+    <div class="nav-lesson">
+      <a class="nav-lesson-header" href="#lesson21">
+        <div class="nav-lesson-num">21</div>
+        Store API：跨 thread 共享记忆
+        <span class="nav-arrow">▶</span>
+      </a>
+      <div class="nav-sub">
+        <a href="#l21-what">checkpointer vs store</a>
+        <a href="#l21-code">完整代码</a>
+        <a href="#l21-api">Store API 速查</a>
+        <a href="#l21-summary">知识点总结</a>
+      </div>
+    </div>
+
+    <!-- 第二十二课 -->
+    <div class="nav-lesson">
+      <a class="nav-lesson-header" href="#lesson22">
+        <div class="nav-lesson-num">22</div>
+        自定义 Reducer：控制字段合并方式
+        <span class="nav-arrow">▶</span>
+      </a>
+      <div class="nav-sub">
+        <a href="#l22-what">Reducer 的本质</a>
+        <a href="#l22-examples">三种 Reducer 示例</a>
+        <a href="#l22-code">完整代码</a>
+        <a href="#l22-summary">知识点总结</a>
+      </div>
+    </div>
+
+    <!-- 第二十三课 -->
+    <div class="nav-lesson">
+      <a class="nav-lesson-header" href="#lesson23">
+        <div class="nav-lesson-num">23</div>
+        interrupt_before/after：外部断点
+        <span class="nav-arrow">▶</span>
+      </a>
+      <div class="nav-sub">
+        <a href="#l23-what">两种断点方式对比</a>
+        <a href="#l23-code">完整代码</a>
+        <a href="#l23-summary">知识点总结</a>
+      </div>
+    </div>
+
   </div>
 </nav>
 
@@ -4356,6 +4461,905 @@ graph.invoke({
       <p><code>add_node("name", sub_builder)</code> 是错的，<code>sub_builder</code> 是 builder，不是 Graph。<br>
       必须先 <code>subgraph = sub_builder.compile()</code>，再 <code>add_node("name", subgraph)</code>。</p>
     </div>
+  </div>
+
+</section>
+
+<!-- ╔══════════════════════════════════════════╗ -->
+<!-- ║  第十七课                                  ║ -->
+<!-- ╚══════════════════════════════════════════╝ -->
+<section id="lesson17">
+  <div class="lesson-header">
+    <div class="lesson-num">17</div>
+    <div>
+      <div class="lesson-title">Multi-Agent：Supervisor 模式</div>
+      <div class="lesson-subtitle">用 LLM 决定把任务路由给哪个子 Agent</div>
+    </div>
+  </div>
+
+  <div class="card" id="l17-what">
+    <div class="card-title">什么是 Supervisor 模式</div>
+    <p>把前面学过的积木拼在一起：</p>
+    <ul>
+      <li><strong>第4课 条件路由</strong> → Supervisor 根据 LLM 决策路由</li>
+      <li><strong>第8课 ReAct Agent</strong> → 每个子 Agent 内部是完整的工具调用循环</li>
+      <li><strong>第16课 子图当节点</strong> → 每个子 Agent 是一个编译好的子图</li>
+    </ul>
+    <p><strong>新概念（只有这一个）：Supervisor 模式</strong></p>
+    <ul>
+      <li>Supervisor 节点：LLM 读取任务，输出下一步去哪个 Agent</li>
+      <li>子 Agent 跑完后结果写回共享 State，再交还给 Supervisor</li>
+      <li>Supervisor 再次判断：继续分配任务 or 结束</li>
+    </ul>
+    <p>Supervisor 是唯一的"决策者"，子 Agent 只负责执行。</p>
+  </div>
+
+  <div class="card" id="l17-arch">
+    <div class="card-title">架构图</div>
+    <pre style="background:#0d1b2a;padding:16px;border-radius:8px;font-size:14px;line-height:1.8">
+START → supervisor → math_agent   → supervisor → ...
+                  ↘ writer_agent  → supervisor → ...
+                  ↘ END（Supervisor 认为任务完成）</pre>
+    <table style="width:100%;border-collapse:collapse;margin-top:12px;font-size:14px">
+      <tr style="background:#1a2f45">
+        <th style="padding:8px 12px;border:1px solid #2d3f52;text-align:left">角色</th>
+        <th style="padding:8px 12px;border:1px solid #2d3f52;text-align:left">实现方式</th>
+        <th style="padding:8px 12px;border:1px solid #2d3f52;text-align:left">职责</th>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">Supervisor</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">普通 LLM 节点 + 条件路由</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">决策、调度</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">math_agent</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">编译子图（ReAct + 工具）</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">数学计算</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">writer_agent</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">编译子图（纯 LLM）</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">文字写作</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card" id="l17-code">
+    <div class="card-title">完整代码（17_multi_agent.py）</div>
+    <pre><code class="language-python"># 共享 State
+class State(TypedDict):
+    task: str    # 用户的任务
+    result: str  # 子 Agent 的执行结果
+    next: str    # Supervisor 的路由决策
+
+# ── 子 Agent A：数学（有工具的 ReAct 子图）──────────────
+class MathState(TypedDict):
+    task: str    # 从外层传入（同名字段）
+    result: str  # 写回外层（同名字段）
+
+def math_agent_full(state: MathState) -> dict:
+    messages = [SystemMessage(...), HumanMessage(content=state["task"])]
+    while True:
+        response = math_llm.invoke(messages)
+        messages.append(response)
+        if not response.tool_calls:
+            return {"result": f"[数学Agent] {response.content}"}
+        for tc in response.tool_calls:
+            tool_result = tool_map[tc["name"]].invoke(tc["args"])
+            messages.append(ToolMessage(...))
+
+math_subgraph = math_builder.compile()
+
+# ── 子 Agent B：写作（纯 LLM）───────────────────────────
+writer_subgraph = writer_builder.compile()
+
+# ── Supervisor：LLM 决定路由 ─────────────────────────────
+def supervisor_node(state: State) -> dict:
+    prompt = f"任务：{state['task']}\n已有结果：{state.get('result','')}\n只输出：math_agent / writer_agent / FINISH"
+    response = llm.invoke([HumanMessage(content=prompt)])
+    decision = response.content.strip()
+    if decision not in ("math_agent", "writer_agent"):
+        decision = "FINISH"
+    return {"next": decision}
+
+def route(state: State) -> Literal["math_agent", "writer_agent", "__end__"]:
+    return "__end__" if state["next"] == "FINISH" else state["next"]
+
+# ── 外层 Graph ───────────────────────────────────────────
+builder.add_node("supervisor",    supervisor_node)
+builder.add_node("math_agent",   math_subgraph)    # 子图当节点
+builder.add_node("writer_agent", writer_subgraph)
+builder.add_edge(START, "supervisor")
+builder.add_conditional_edges("supervisor", route)
+builder.add_edge("math_agent",   "supervisor")     # 跑完交还 Supervisor
+builder.add_edge("writer_agent", "supervisor")</code></pre>
+  </div>
+
+  <div class="card" id="l17-flow">
+    <div class="card-title">执行流程（以数学任务为例）</div>
+    <pre style="background:#0d1b2a;padding:16px;border-radius:8px;font-size:14px;line-height:1.8">
+supervisor（第1次）
+  LLM 看到"计算 36×7+100"
+  输出 next = "math_agent"
+        ↓
+math_agent（子图）
+  内部 ReAct 循环：multiply(36,7)=252 → add(252,100)=352
+  result = "[数学Agent] 结果是 352"
+  写回外层 State
+        ↓
+supervisor（第2次）
+  LLM 看到 result 已有答案
+  输出 next = "FINISH"
+        ↓
+END</pre>
+  </div>
+
+  <div class="card" id="l17-summary">
+    <div class="card-title">知识点总结</div>
+    <table style="width:100%;border-collapse:collapse;font-size:14px">
+      <tr style="background:#1a2f45">
+        <th style="padding:8px 12px;border:1px solid #2d3f52;text-align:left">知识点</th>
+        <th style="padding:8px 12px;border:1px solid #2d3f52;text-align:left">说明</th>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">Supervisor 模式</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">LLM 决策路由，子 Agent 只负责执行</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">子 Agent 交还控制权</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>add_edge("math_agent", "supervisor")</code> 跑完回来</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">State 通信</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">task / result 同名字段在外层和子图间自动传递</td>
+      </tr>
+    </table>
+  </div>
+
+</section>
+
+<!-- ╔══════════════════════════════════════════╗ -->
+<!-- ║  第十八课                                  ║ -->
+<!-- ╚══════════════════════════════════════════╝ -->
+<section id="lesson18">
+  <div class="lesson-header">
+    <div class="lesson-num">18</div>
+    <div>
+      <div class="lesson-title">Send API：并行执行（Fan-out / Map-Reduce）</div>
+      <div class="lesson-subtitle">把一个任务拆成多份，同时跑多个节点实例</div>
+    </div>
+  </div>
+
+  <div class="card" id="l18-what">
+    <div class="card-title">什么是 Send</div>
+    <p>前面所有课的路由函数都返回一个<strong>字符串</strong>（下一个节点名），每次只走一条路，串行执行。</p>
+    <p><code>Send</code> 让路由函数返回一个<strong>列表</strong>，同时触发多个节点实例并行跑：</p>
+    <pre><code class="language-python">from langgraph.types import Send
+
+def fan_out(state: State) -> list[Send]:
+    return [
+        Send("worker", {"question": q, "answers": []})
+        for q in state["questions"]
+    ]
+# 3 个问题 → 同时跑 3 个 worker 实例，互不等待</code></pre>
+    <p style="margin-top:12px;padding:10px;background:#1a2f45;border-radius:6px">
+      💡 <strong>这也是为什么 <code>snapshot.next</code> 是 tuple 而不是字符串</strong><br>
+      普通路由时：<code>next = ("summarize",)</code> — 只有一个节点<br>
+      并行路由时：<code>next = ("worker", "worker", "worker")</code> — 同时有多个<br>
+      设计成 tuple 就是为了统一处理这两种情况。
+    </p>
+  </div>
+
+  <div class="card" id="l18-reducer">
+    <div class="card-title">Reducer 的作用</div>
+    <p>3 个 worker 同时往 <code>answers</code> 字段写结果，如果没有 Reducer 会<strong>互相覆盖</strong>，只剩最后一个。</p>
+    <p>用 <code>Annotated + operator.add</code> 声明 Reducer，告诉 LangGraph "把每次写入的列表拼接进去"：</p>
+    <pre><code class="language-python">import operator
+from typing import Annotated
+
+class State(TypedDict):
+    questions: list[str]
+    answers: Annotated[list[str], operator.add]  # ← Reducer
+    #         每个 worker 返回 ["答案X"]，自动 add 拼接，不覆盖
+
+class WorkerState(TypedDict):
+    question: str
+    answers: Annotated[list[str], operator.add]  # worker 也要声明</code></pre>
+    <p style="margin-top:8px">这和第13课 <code>MessagesState</code> 里的 <code>add_messages</code> 是同一个道理 —— 都是 Reducer。</p>
+  </div>
+
+  <div class="card" id="l18-code">
+    <div class="card-title">完整代码（18_send_api.py）</div>
+    <pre><code class="language-python">class State(TypedDict):
+    questions: list[str]
+    answers: Annotated[list[str], operator.add]
+
+class WorkerState(TypedDict):
+    question: str
+    answers: Annotated[list[str], operator.add]
+
+# Fan-out：拆成多个 Send
+def fan_out(state: State) -> list[Send]:
+    return [
+        Send("worker", {"question": q, "answers": []})
+        for q in state["questions"]
+    ]
+
+# Worker：处理单个问题
+def worker(state: WorkerState) -> dict:
+    response = llm.invoke([
+        SystemMessage(content="用一句话简洁回答。"),
+        HumanMessage(content=state["question"]),
+    ])
+    return {"answers": [f"Q: {state['question']}\nA: {response.content}"]}
+
+# 汇总节点：所有 worker 完成后执行
+def summarize(state: State) -> dict:
+    for i, ans in enumerate(state["answers"], 1):
+        print(f"{i}. {ans}")
+    return {}
+
+builder = StateGraph(State)
+builder.add_node("worker",    worker)
+builder.add_node("summarize", summarize)
+
+builder.add_conditional_edges(START, fan_out)  # ← 路由函数返回 Send 列表
+builder.add_edge("worker",    "summarize")
+builder.add_edge("summarize", END)
+
+graph = builder.compile()
+
+graph.invoke({
+    "questions": ["什么是机器学习？", "什么是深度学习？", "什么是强化学习？"],
+    "answers": [],
+})</code></pre>
+  </div>
+
+  <div class="card" id="l18-flow">
+    <div class="card-title">执行流程</div>
+    <pre style="background:#0d1b2a;padding:16px;border-radius:8px;font-size:14px;line-height:1.8">
+START
+  ↓ fan_out() 返回 [Send("worker",q1), Send("worker",q2), Send("worker",q3)]
+worker(q1)   worker(q2)   worker(q3)   ← 3 个实例同时并行跑
+  ↓               ↓            ↓
+每个返回 {"answers": ["Q:...\nA:..."]}
+Reducer(operator.add) 把 3 个列表合并成一个 answers
+  ↓
+summarize()   ← 等所有 worker 完成后才执行
+  ↓
+END</pre>
+  </div>
+
+  <div class="card" id="l18-summary">
+    <div class="card-title">知识点总结</div>
+    <table style="width:100%;border-collapse:collapse;font-size:14px">
+      <tr style="background:#1a2f45">
+        <th style="padding:8px 12px;border:1px solid #2d3f52;text-align:left">知识点</th>
+        <th style="padding:8px 12px;border:1px solid #2d3f52;text-align:left">说明</th>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>Send(node, state)</code></td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">创建一个并行任务，路由函数返回 Send 列表即可并行</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>Annotated[list, operator.add]</code></td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">Reducer，并行节点写同一字段时拼接而不是覆盖</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>snapshot.next</code> 是 tuple</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">并行时多个节点同时在 next 里，所以设计成 tuple</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">汇聚（Fan-in）</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">所有并行 worker 完成后，自动继续执行下一个节点</td>
+      </tr>
+    </table>
+  </div>
+
+</section>
+
+<!-- ╔══════════════════════════════════════════╗ -->
+<!-- ║  第十九课                                  ║ -->
+<!-- ╚══════════════════════════════════════════╝ -->
+<section id="lesson19">
+  <div class="lesson-header">
+    <div class="lesson-num">19</div>
+    <div>
+      <div class="lesson-title">SqliteSaver：持久化存储</div>
+      <div class="lesson-subtitle">程序重启后状态依然在，MemorySaver 的磁盘版</div>
+    </div>
+  </div>
+
+  <div class="card" id="l19-what">
+    <div class="card-title">MemorySaver vs SqliteSaver</div>
+    <table style="width:100%;border-collapse:collapse;font-size:14px">
+      <tr style="background:#1a2f45">
+        <th style="padding:8px 12px;border:1px solid #2d3f52;text-align:left"></th>
+        <th style="padding:8px 12px;border:1px solid #2d3f52;text-align:left">MemorySaver</th>
+        <th style="padding:8px 12px;border:1px solid #2d3f52;text-align:left">SqliteSaver</th>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">存储位置</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">Python 进程内存</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">磁盘 .db 文件</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">程序重启后</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">❌ 全部丢失</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">✅ 依然保留</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">适合场景</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">本地调试</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">本地开发 / 单机部署</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">用法差异</td>
+        <td colspan="2" style="padding:8px 12px;border:1px solid #2d3f52">完全相同，只换创建方式（drop-in 替换）</td>
+      </tr>
+    </table>
+    <pre style="margin-top:12px"><code class="language-python"># 旧：MemorySaver
+memory = MemorySaver()
+graph = builder.compile(checkpointer=memory)
+
+# 新：SqliteSaver（只改这里，其余代码完全不变）
+with SqliteSaver.from_conn_string("checkpoints.db") as memory:
+    graph = builder.compile(checkpointer=memory)</code></pre>
+  </div>
+
+  <div class="card" id="l19-code">
+    <div class="card-title">完整代码（19_sqlite_saver.py）</div>
+    <pre><code class="language-python">from langgraph.checkpoint.sqlite import SqliteSaver
+
+DB_PATH = "checkpoints.db"
+
+# ── 第一次启动（写入数据库）──────────────────────────────
+with SqliteSaver.from_conn_string(DB_PATH) as memory:
+    graph = builder.compile(checkpointer=memory)
+    config = {"configurable": {"thread_id": "session-001"}}
+
+    result = graph.invoke(
+        {"messages": [HumanMessage(content="你好，我叫小明，我喜欢打篮球。")]},
+        config=config,
+    )
+    print("AI：", result["messages"][-1].content)
+# with 块结束 → 数据库连接关闭，模拟"程序退出"
+
+# ── 第二次启动（从数据库恢复状态）────────────────────────
+with SqliteSaver.from_conn_string(DB_PATH) as memory:
+    graph = builder.compile(checkpointer=memory)
+    config = {"configurable": {"thread_id": "session-001"}}  # 同一 thread_id
+
+    result = graph.invoke(
+        {"messages": [HumanMessage(content="我叫什么名字？我有什么爱好？")]},
+        config=config,
+    )
+    print("AI：", result["messages"][-1].content)
+    # AI 记住了上一次的内容 ✓</code></pre>
+  </div>
+
+  <div class="card" id="l19-summary">
+    <div class="card-title">知识点总结</div>
+    <table style="width:100%;border-collapse:collapse;font-size:14px">
+      <tr style="background:#1a2f45">
+        <th style="padding:8px 12px;border:1px solid #2d3f52;text-align:left">知识点</th>
+        <th style="padding:8px 12px;border:1px solid #2d3f52;text-align:left">说明</th>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>SqliteSaver.from_conn_string("x.db")</code></td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">创建 SQLite checkpointer，数据写入磁盘文件</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>with ... as memory</code></td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">上下文管理器，离开 with 块自动关闭数据库连接</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">同一 thread_id</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">重启后用同一 thread_id 即可恢复历史状态</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">生产环境</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>PostgresSaver</code>，用法几乎一样，换 connection string 即可</td>
+      </tr>
+    </table>
+  </div>
+
+</section>
+
+<!-- ╔══════════════════════════════════════════╗ -->
+<!-- ║  第二十课                                  ║ -->
+<!-- ╚══════════════════════════════════════════╝ -->
+<section id="lesson20">
+  <div class="lesson-header">
+    <div class="lesson-num">20</div>
+    <div>
+      <div class="lesson-title">astream_events：token 级别流式输出</div>
+      <div class="lesson-subtitle">LLM 每生成一个 token 就立刻输出，实现打字机效果</div>
+    </div>
+  </div>
+
+  <div class="card" id="l20-what">
+    <div class="card-title">stream() vs astream_events()</div>
+    <table style="width:100%;border-collapse:collapse;font-size:14px">
+      <tr style="background:#1a2f45">
+        <th style="padding:8px 12px;border:1px solid #2d3f52;text-align:left"></th>
+        <th style="padding:8px 12px;border:1px solid #2d3f52;text-align:left">graph.stream()</th>
+        <th style="padding:8px 12px;border:1px solid #2d3f52;text-align:left">graph.astream_events()</th>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">粒度</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">节点级别（节点跑完才输出）</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">token 级别（每个字立刻输出）</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">同步/异步</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">同步（for 循环）</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">异步（async for + asyncio.run）</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">适合场景</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">调试、查看 State 变化</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">前端打字机效果、实时 UI</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card" id="l20-code">
+    <div class="card-title">完整代码（20_astream_events.py）</div>
+    <pre><code class="language-python">import asyncio
+from langchain_openai import ChatOpenAI
+
+# ★ 开启 LLM 流式输出
+llm = ChatOpenAI(..., streaming=True)
+
+async def stream_tokens():
+    async for event in graph.astream_events(
+        {"messages": [HumanMessage(content="用三句话介绍一下 Python 语言")]},
+        version="v2",   # 固定写 v2
+    ):
+        # 只关心 LLM 输出 token 的事件
+        if event["event"] == "on_chat_model_stream":
+            token = event["data"]["chunk"].content
+            if token:
+                print(token, end="", flush=True)  # 逐 token 打印
+
+asyncio.run(stream_tokens())</code></pre>
+    <p style="margin-top:10px">关键三步：<br>
+    1. <code>ChatOpenAI(streaming=True)</code> — LLM 开启流式<br>
+    2. <code>async for event in graph.astream_events(..., version="v2")</code> — 异步迭代事件<br>
+    3. 过滤 <code>event["event"] == "on_chat_model_stream"</code> — 只取 token 事件</p>
+  </div>
+
+  <div class="card" id="l20-events">
+    <div class="card-title">常用事件类型</div>
+    <table style="width:100%;border-collapse:collapse;font-size:14px">
+      <tr style="background:#1a2f45">
+        <th style="padding:8px 12px;border:1px solid #2d3f52;text-align:left">事件类型</th>
+        <th style="padding:8px 12px;border:1px solid #2d3f52;text-align:left">触发时机</th>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>on_chain_start</code></td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">Graph / 节点开始执行</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>on_chain_end</code></td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">Graph / 节点执行完毕</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>on_chat_model_start</code></td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">LLM 开始生成</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>on_chat_model_stream</code> ★</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">LLM 输出一个 token（打字机效果靠这个）</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>on_chat_model_end</code></td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">LLM 生成完毕</td>
+      </tr>
+    </table>
+    <pre style="margin-top:12px"><code class="language-python"># event 结构：
+{
+  "event":    "on_chat_model_stream",
+  "name":     "ChatOpenAI",
+  "data":     {"chunk": AIMessageChunk(content="你")},
+  "metadata": {"langgraph_node": "chat", ...}  # 哪个节点产生的
+}</code></pre>
+  </div>
+
+  <div class="card" id="l20-summary">
+    <div class="card-title">知识点总结</div>
+    <table style="width:100%;border-collapse:collapse;font-size:14px">
+      <tr style="background:#1a2f45">
+        <th style="padding:8px 12px;border:1px solid #2d3f52;text-align:left">知识点</th>
+        <th style="padding:8px 12px;border:1px solid #2d3f52;text-align:left">说明</th>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>streaming=True</code></td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">ChatOpenAI 必须开启，否则不会逐 token 输出</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>version="v2"</code></td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">固定写 v2，当前稳定版本</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>on_chat_model_stream</code></td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">每个 token 触发一次，<code>event["data"]["chunk"].content</code> 取文本</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>async for / asyncio.run</code></td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">astream_events 是异步方法，必须在 async 函数里用</td>
+      </tr>
+    </table>
+  </div>
+
+</section>
+
+<!-- ╔══════════════════════════════════════════╗ -->
+<!-- ║  第二十一课                                ║ -->
+<!-- ╚══════════════════════════════════════════╝ -->
+<section id="lesson21">
+  <div class="lesson-header">
+    <div class="lesson-num">21</div>
+    <div>
+      <div class="lesson-title">Store API：跨 thread 共享记忆</div>
+      <div class="lesson-subtitle">所有 thread 共享的全局键值存储，用于跨会话长期记忆</div>
+    </div>
+  </div>
+
+  <div class="card" id="l21-what">
+    <div class="card-title">checkpointer vs store</div>
+    <table style="width:100%;border-collapse:collapse;font-size:14px">
+      <tr style="background:#1a2f45">
+        <th style="padding:8px 12px;border:1px solid #2d3f52;text-align:left"></th>
+        <th style="padding:8px 12px;border:1px solid #2d3f52;text-align:left">checkpointer</th>
+        <th style="padding:8px 12px;border:1px solid #2d3f52;text-align:left">store</th>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">作用</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">保存每次执行的 State 快照</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">跨 thread 共享的键值存储</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">隔离性</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">每个 thread_id 完全独立</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">所有 thread 共享同一个 store</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">适合场景</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">同一会话的多轮对话历史</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">用户画像、偏好、跨会话长期记忆</td>
+      </tr>
+    </table>
+    <pre style="margin-top:12px"><code class="language-python">from langgraph.store.memory import InMemoryStore
+
+store  = InMemoryStore()
+memory = MemorySaver()
+
+# 同时传入两者
+graph = builder.compile(checkpointer=memory, store=store)</code></pre>
+  </div>
+
+  <div class="card" id="l21-code">
+    <div class="card-title">完整代码（21_store.py）</div>
+    <pre><code class="language-python"># 节点通过 *, store: BaseStore 参数注入
+def chat_node(state: State, *, store: BaseStore) -> dict:
+    user_id  = state["user_id"]
+    namespace = ("users", user_id)   # 命名空间，元组表示层级
+
+    # 读取该用户的历史记忆
+    memory_item = store.get(namespace, "profile")
+    memory_text = f"已知用户信息：{memory_item.value}" if memory_item else ""
+
+    response = llm.invoke([
+        SystemMessage(content=f"你是一个助手。{memory_text}"),
+        *state["messages"],
+    ])
+
+    # 把新信息写入 store（所有 thread 共享）
+    store.put(namespace, "profile", {"name": "小明", "hobby": "篮球"})
+
+    return {"messages": state["messages"] + [response]}
+
+# ── 第一次对话（thread-A）──────────────────────────────
+config_a = {"configurable": {"thread_id": "thread-A"}}
+graph.invoke(
+    {"user_id": "user-001", "messages": [HumanMessage(content="你好，我叫小明，我喜欢打篮球。")]},
+    config=config_a,
+)
+
+# ── 第二次对话（thread-B，全新 thread）────────────────
+config_b = {"configurable": {"thread_id": "thread-B"}}
+result = graph.invoke(
+    {"user_id": "user-001", "messages": [HumanMessage(content="你还记得我叫什么吗？")]},
+    config=config_b,
+)
+# thread-B 没有 thread-A 的历史，但通过 store 依然记得用户信息 ✓</code></pre>
+  </div>
+
+  <div class="card" id="l21-api">
+    <div class="card-title">Store API 速查</div>
+    <table style="width:100%;border-collapse:collapse;font-size:14px">
+      <tr style="background:#1a2f45">
+        <th style="padding:8px 12px;border:1px solid #2d3f52;text-align:left">方法</th>
+        <th style="padding:8px 12px;border:1px solid #2d3f52;text-align:left">说明</th>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>store.put(namespace, key, value)</code></td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">写入数据，value 是任意 dict</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>store.get(namespace, key)</code></td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">读取单条，返回 Item 对象（无则 None）</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>item.value</code></td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">取出存储的值</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>store.search(namespace)</code></td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">搜索该命名空间下所有条目</td>
+      </tr>
+    </table>
+    <p style="margin-top:10px">命名空间用元组表示层级，例如 <code>("users", "user-001")</code>，类似文件夹路径，方便按用户 / 类型分类管理。</p>
+  </div>
+
+  <div class="card" id="l21-summary">
+    <div class="card-title">知识点总结</div>
+    <table style="width:100%;border-collapse:collapse;font-size:14px">
+      <tr style="background:#1a2f45">
+        <th style="padding:8px 12px;border:1px solid #2d3f52;text-align:left">知识点</th>
+        <th style="padding:8px 12px;border:1px solid #2d3f52;text-align:left">说明</th>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>InMemoryStore()</code></td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">内存版 store，生产环境可换 AsyncPostgresStore 等</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>*, store: BaseStore</code></td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">节点函数通过关键字参数注入 store，LangGraph 自动传入</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">namespace 命名空间</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">元组表示层级，用于分类隔离不同用户 / 类型的数据</td>
+      </tr>
+    </table>
+  </div>
+
+</section>
+
+<!-- ╔══════════════════════════════════════════╗ -->
+<!-- ║  第二十二课                                ║ -->
+<!-- ╚══════════════════════════════════════════╝ -->
+<section id="lesson22">
+  <div class="lesson-header">
+    <div class="lesson-num">22</div>
+    <div>
+      <div class="lesson-title">自定义 Reducer：控制 State 字段如何合并</div>
+      <div class="lesson-subtitle">写任意 (old, new) → merged 函数，挂到 Annotated 上即可</div>
+    </div>
+  </div>
+
+  <div class="card" id="l22-what">
+    <div class="card-title">Reducer 的本质</div>
+    <p>每次节点返回新值时，LangGraph 调用 Reducer：</p>
+    <pre><code class="language-python">merged = reducer(state 中的旧值, 节点返回的新值)
+# 然后把 merged 写回 State</code></pre>
+    <p>没有 Reducer → 新值直接覆盖旧值<br>
+    有 Reducer → 由你决定怎么合并</p>
+    <pre><code class="language-python">def my_reducer(old, new):
+    ...合并逻辑...
+    return merged
+
+class State(TypedDict):
+    field: Annotated[类型, my_reducer]   # 挂上去就生效</code></pre>
+    <p>已学过的内置 Reducer：<br>
+    &nbsp;&nbsp;<code>add_messages</code>（第13课）— 追加消息，重复 id 会更新<br>
+    &nbsp;&nbsp;<code>operator.add</code>（第18课）— 列表拼接，等价于 old + new<br>
+    &nbsp;&nbsp;自定义（本课）— 任意 (old, new) → merged</p>
+  </div>
+
+  <div class="card" id="l22-examples">
+    <div class="card-title">三种 Reducer 示例</div>
+    <pre><code class="language-python"># 1. 滑动窗口：只保留最新 3 条
+def keep_last_3(old: list, new: list) -> list:
+    return (old + new)[-3:]
+
+# 2. 合并字典：新 key 覆盖旧 key，旧有而新没有的保留
+def merge_dict(old: dict, new: dict) -> dict:
+    return {**old, **new}
+
+# 3. 去重列表：已存在的不重复添加
+def unique_append(old: list, new: list) -> list:
+    result = list(old)
+    for item in new:
+        if item not in result:
+            result.append(item)
+    return result</code></pre>
+    <table style="width:100%;border-collapse:collapse;font-size:13px;margin-top:12px">
+      <tr style="background:#1a2f45">
+        <th style="padding:8px 12px;border:1px solid #2d3f52;text-align:left">Reducer</th>
+        <th style="padding:8px 12px;border:1px solid #2d3f52;text-align:left">旧值</th>
+        <th style="padding:8px 12px;border:1px solid #2d3f52;text-align:left">新值</th>
+        <th style="padding:8px 12px;border:1px solid #2d3f52;text-align:left">结果</th>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">keep_last_3</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">["a","b"]</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">["c","d","e"]</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">["c","d","e"]</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">merge_dict</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">{"x":1,"y":2}</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">{"y":9,"z":3}</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">{"x":1,"y":9,"z":3}</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">unique_append</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">["a","b"]</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">["b","c"]</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">["a","b","c"]</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card" id="l22-code">
+    <div class="card-title">完整代码（22_custom_reducer.py）</div>
+    <pre><code class="language-python">class State(TypedDict):
+    question: str
+    logs:     Annotated[list[str], keep_last_3]   # 滑动窗口
+    profile:  Annotated[dict,      merge_dict]     # 字典合并
+    tags:     Annotated[list[str], unique_append]  # 去重
+
+def node_b(state: State) -> dict:
+    return {
+        "logs":    ["node_b 执行", "LLM 回答..."],
+        "profile": {"step": "b", "answer_len": 42},
+        "tags":    ["langgraph", "llm", "node_b"],  # "langgraph" 已存在，不重复
+    }
+
+result = graph.invoke({
+    "question": "什么是人工智能？",
+    "logs": [], "profile": {}, "tags": [],
+})
+# logs    → 只保留最新3条
+# profile → 各节点的 key 合并成一个 dict
+# tags    → 去重后的标签列表</code></pre>
+  </div>
+
+  <div class="card" id="l22-summary">
+    <div class="card-title">知识点总结</div>
+    <table style="width:100%;border-collapse:collapse;font-size:14px">
+      <tr style="background:#1a2f45">
+        <th style="padding:8px 12px;border:1px solid #2d3f52;text-align:left">知识点</th>
+        <th style="padding:8px 12px;border:1px solid #2d3f52;text-align:left">说明</th>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">Reducer 签名</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>def reducer(old, new) -> merged</code>，两个参数固定</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">挂载方式</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>Annotated[类型, reducer函数]</code></td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">无 Reducer</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">节点返回的新值直接覆盖旧值</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">有 Reducer</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">LangGraph 自动调用 reducer(旧值, 新值)，结果写回 State</td>
+      </tr>
+    </table>
+  </div>
+
+</section>
+
+<!-- ╔══════════════════════════════════════════╗ -->
+<!-- ║  第二十三课                                ║ -->
+<!-- ╚══════════════════════════════════════════╝ -->
+<section id="lesson23">
+  <div class="lesson-header">
+    <div class="lesson-num">23</div>
+    <div>
+      <div class="lesson-title">interrupt_before / interrupt_after：外部断点</div>
+      <div class="lesson-subtitle">compile 时声明断点，节点代码完全不改</div>
+    </div>
+  </div>
+
+  <div class="card" id="l23-what">
+    <div class="card-title">两种断点方式对比</div>
+    <table style="width:100%;border-collapse:collapse;font-size:14px">
+      <tr style="background:#1a2f45">
+        <th style="padding:8px 12px;border:1px solid #2d3f52;text-align:left"></th>
+        <th style="padding:8px 12px;border:1px solid #2d3f52;text-align:left">interrupt()（第11课）</th>
+        <th style="padding:8px 12px;border:1px solid #2d3f52;text-align:left">interrupt_before（本课）</th>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">写在哪里</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">节点代码内部</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">compile() 参数</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">节点代码</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">需要修改</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">完全不动</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">能传值给节点</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">✅ Command(resume=值)</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">❌ 只能放行</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">恢复方式</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>invoke(Command(resume=...), config)</code></td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>invoke(None, config)</code></td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">适合场景</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">需要人类提供信息，节点根据它决策</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">只需人工"放行"审核，不传额外信息</td>
+      </tr>
+    </table>
+    <pre style="margin-top:12px"><code class="language-python"># 用法：compile 时传入，节点代码完全不改
+graph = builder.compile(
+    checkpointer=MemorySaver(),
+    interrupt_before=["execute_node"],   # 在 execute_node 执行前暂停
+    # interrupt_after=["plan_node"],     # 或者：在 plan_node 执行后暂停（效果相同）
+)</code></pre>
+  </div>
+
+  <div class="card" id="l23-code">
+    <div class="card-title">完整代码（23_interrupt_before.py）</div>
+    <pre><code class="language-python"># 节点代码里没有任何 interrupt（这是关键）
+def execute_node(state: State) -> dict:
+    response = llm.invoke([...])
+    return {"result": response.content}
+
+# compile 时声明断点
+graph = builder.compile(
+    checkpointer=MemorySaver(),
+    interrupt_before=["execute_node"],
+)
+
+config = {"configurable": {"thread_id": "task-001"}}
+
+# 第一次 invoke：plan_node 跑完后，execute_node 之前暂停
+graph.invoke({"task": "写一篇关于 Python 的短文", ...}, config=config)
+
+snapshot = graph.get_state(config)
+print(snapshot.next)        # ('execute_node',)
+print(snapshot.values['plan'])  # 已生成的计划
+
+# 人工审核通过后，恢复（传 None，不需要 Command）
+result = graph.invoke(None, config=config)</code></pre>
+  </div>
+
+  <div class="card" id="l23-summary">
+    <div class="card-title">知识点总结</div>
+    <table style="width:100%;border-collapse:collapse;font-size:14px">
+      <tr style="background:#1a2f45">
+        <th style="padding:8px 12px;border:1px solid #2d3f52;text-align:left">知识点</th>
+        <th style="padding:8px 12px;border:1px solid #2d3f52;text-align:left">说明</th>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>interrupt_before=["节点名"]</code></td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">在该节点执行前暂停，可传多个节点名</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>interrupt_after=["节点名"]</code></td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">在该节点执行后暂停</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">恢复方式</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52"><code>graph.invoke(None, config=config)</code>，传 None 从断点继续</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">需要 checkpointer</td>
+        <td style="padding:8px 12px;border:1px solid #2d3f52">断点依赖 checkpointer 保存暂停状态，必须传入</td>
+      </tr>
+    </table>
   </div>
 
 </section>
