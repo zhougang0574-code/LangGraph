@@ -3,7 +3,7 @@
 ======================================================
 前面见过两种内置 Reducer：
   add_messages   → 把新消息追加进列表（〔02_状态State/03〕）
-  operator.add   → 把新列表拼接进旧列表（〔03_控制流Edge/03〕）
+  operator.add   → 把新列表拼接进旧列表（〔04_控制流Edge/04〕）
 
 它们的本质都是一个函数：(旧值, 新值) → 合并后的值
 
@@ -150,6 +150,6 @@ Reducer 的本质：
 
 已学过的内置 Reducer：
   add_messages（〔02_状态State/03〕）：把新消息追加，重复 id 的消息会更新
-  operator.add（〔03_控制流Edge/03〕）：列表拼接，等价于 old + new
+  operator.add（〔04_控制流Edge/04〕）：列表拼接，等价于 old + new
   自定义（本课）：写任意 (old, new) → merged 函数
 """
